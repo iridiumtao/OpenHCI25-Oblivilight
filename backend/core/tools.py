@@ -86,7 +86,7 @@ def update_memory(memory_uuid: str, update_data: Dict[str, Any]) -> Dict[str, An
 
 # --- Printer Tool ---
 
-def _get_font_path(font_name="arial.ttf"):
+def _get_font_path(font_name="jf-openhuninn-2.1.ttf"):
     """Helper to find a font file, falling back to a default."""
     # This is a very basic check. For a real app, you might search system font paths.
     if os.path.exists(font_name):

@@ -308,10 +308,10 @@ async def real_time_emotion_analysis():
     """
     buffer = np.zeros((0, 1), dtype=np.float32)
     # Configuration based on whisper_realtime.py
-    WINDOW_SEC = 3
-    STEP_SEC = 0.8
+    WINDOW_SEC = 10
+    STEP_SEC = 9
     TRIM_OLD_AUDIO = True
-    MAX_BUFFER_SEC = 5
+    MAX_BUFFER_SEC = 12
     SAMPLE_RATE = 16_000
     
     WINDOW_SAMPLES = int(SAMPLE_RATE * WINDOW_SEC)
