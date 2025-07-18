@@ -7,6 +7,8 @@ import logging
 import numpy as np
 import sounddevice as sd
 
+from backend.core.agent import system_state
+
 # --- Configuration ---
 SAMPLE_RATE = 16_000
 FRAME_MS = 250
@@ -23,7 +25,10 @@ def _audio_callback(indata: np.ndarray, frames: int, time_info, status) -> None:
     """This is called (from a separate thread) for each audio block."""
     if status:
         logger.warning(f"Sounddevice status: {status}")
-    audio_q.put(indata.copy())
+    
+    # Only add audio to the queue if the system is in a listening state
+    if system_state.is_listening:
+        audio_q.put(indata.copy())
 
 def _mic_thread_target() -> None:
     """

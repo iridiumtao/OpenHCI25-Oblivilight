@@ -320,9 +320,25 @@ async def real_time_emotion_analysis():
     
     frames_since_last_transcription = 0
     loop = asyncio.get_running_loop()
+    was_listening_before = False
     
     logger.info("Starting real-time emotion analysis loop...")
     while True:
+        # State change check: from not listening to listening
+        if agent.system_state.is_listening and not was_listening_before:
+            logger.info("Wake up detected in analysis loop. Clearing buffers.")
+            # Clear the internal numpy buffer
+            buffer = np.zeros((0, 1), dtype=np.float32)
+            frames_since_last_transcription = 0
+            # Clear the shared audio queue to discard any stale audio
+            while not audio_q.empty():
+                try:
+                    audio_q.get_nowait()
+                except queue.Empty:
+                    break
+        
+        was_listening_before = agent.system_state.is_listening
+
         if not agent.system_state.is_listening or agent.system_state.is_processing:
             await asyncio.sleep(0.5) # Wait if not listening or if busy
             continue

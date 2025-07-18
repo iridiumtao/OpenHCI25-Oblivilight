@@ -56,6 +56,8 @@ class Agent:
 
         logger.info(f"Agent handling signal: {signal}")
         if signal == "WAKE_UP":
+            logger.info("Wake-up signal received. Resetting conversation history.")
+            self.system_state.conversation_history = []
             self.system_state.is_listening = True
             await self.light_control_tool.set_light_effect("neutral") # Or a specific wake-up light
         elif signal == "SLEEP_TRIGGER":
