@@ -5,6 +5,7 @@ from datetime import datetime
 
 from backend.core.chains import get_chains
 from backend.core.tools import create_memory, generate_card_image, LightControlTool
+from backend.services.tts_service import text_to_speech_and_play # Import the new TTS service
 import logging
 import os
 
@@ -99,7 +100,14 @@ class Agent:
             remaining_text = confirmation_result
 
         logger.info(f"Remaining conversation: {remaining_text}")
-        # Here you would optionally call a TTS service to speak the confirmation.
+        
+        # Play the confirmation message using the new TTS service
+        try:
+            # Running in a separate thread to avoid blocking the async event loop
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, text_to_speech_and_play, remaining_text)
+        except Exception as e:
+            logger.error(f"Error playing TTS confirmation: {e}", exc_info=True)
         
         self.system_state.is_processing = False
         logger.info("'Forget memory' flow finished.")
