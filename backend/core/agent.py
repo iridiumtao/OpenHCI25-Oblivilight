@@ -5,7 +5,8 @@ from datetime import datetime
 
 from backend.core.chains import get_chains
 from backend.core.tools import create_memory, generate_card_image, LightControlTool
-from backend.services.tts_service import text_to_speech_and_play # Import the new TTS service
+# Temporarily switching to Yating TTS for testing
+from backend.services.tts_service import text_to_speech_and_play_yating as text_to_speech_and_play
 import logging
 import os
 
@@ -73,7 +74,6 @@ class Agent:
         self.system_state.is_processing = True
         logger.info("Processing 'forget memory' flow...")
 
-        # Determine number of words to forget (approximate)
         words_to_forget = 90 if signal == "FORGET_30S" else 25
         
         if not self.system_state.conversation_history:
@@ -81,23 +81,24 @@ class Agent:
             self.system_state.is_processing = False
             return
 
-        # Simple implementation: remove last N words.
-        # A more robust implementation might work with tokens.
         full_text = " ".join(self.system_state.conversation_history)
         words = full_text.split()
         
-        if len(words) <= words_to_forget:
-            self.system_state.conversation_history = []
-            remaining_text = "我已經忘記了我們剛剛所有說的話。"
-        else:
-            remaining_words = words[:-words_to_forget]
-            self.system_state.conversation_history = [" ".join(remaining_words)] # Re-join as a single entry for simplicity
-            
-            # Generate confirmation - Unchanged, already uses 'conversation'
-            confirmation_result = await self.chains['forget_confirm'].ainvoke(
-                {"conversation": " ".join(remaining_words)}
-            )
-            remaining_text = confirmation_result
+        remaining_words_list = []
+        if len(words) > words_to_forget:
+            remaining_words_list = words[:-words_to_forget]
+
+        # Update conversation history based on what remains.
+        self.system_state.conversation_history = [" ".join(remaining_words_list)] if remaining_words_list else []
+        
+        remaining_conversation_text = " ".join(remaining_words_list)
+        
+        # Always generate confirmation from the LLM, even if the remaining conversation is empty.
+        # The prompt is designed to handle this gracefully.
+        confirmation_result = await self.chains['forget_confirm'].ainvoke(
+            {"conversation": remaining_conversation_text}
+        )
+        remaining_text = confirmation_result
 
         logger.info(f"Remaining conversation: {remaining_text}")
         
