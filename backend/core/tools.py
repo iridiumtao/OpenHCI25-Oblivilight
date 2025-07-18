@@ -86,17 +86,6 @@ def update_memory(memory_uuid: str, update_data: Dict[str, Any]) -> Dict[str, An
 
 # --- Printer Tool ---
 
-def _get_font_path(font_name="jf-openhuninn-2.1.ttf"):
-    """Helper to find a font file, falling back to a default."""
-    # This is a very basic check. For a real app, you might search system font paths.
-    if os.path.exists(font_name):
-        return font_name
-    # On non-Windows, Arial may not be available.
-    # A more robust solution would check the OS and look in standard font dirs.
-    # For now, we return None to let Pillow use its default.
-    print(f"Warning: Font '{font_name}' not found. Using Pillow's default font.")
-    return None
-
 def generate_card_image(date_str: str, short_summary: str, qr_data: str, output_path: str) -> str:
     """
     Generates a card image with date, summary, and a QR code.
@@ -116,13 +105,15 @@ def generate_card_image(date_str: str, short_summary: str, qr_data: str, output_
     image = Image.new("RGB", (width, height), color=bg_color)
     draw = ImageDraw.Draw(image)
 
-    # Load fonts
+    # Load fonts using the font name, with a fallback to default.
+    # Pillow will search for the font in standard system font directories.
     try:
-        font_path = _get_font_path()
-        date_font = ImageFont.truetype(font_path, 48) if font_path else ImageFont.load_default()
-        summary_font = ImageFont.truetype(font_path, 72) if font_path else ImageFont.load_default()
+        font_name = "jf-openhuninn-2.1.ttf"
+        date_font = ImageFont.truetype(font_name, 48)
+        summary_font = ImageFont.truetype(font_name, 72)
+        print(f"Successfully loaded font '{font_name}'.")
     except IOError:
-        print("Defaulting to built-in font due to loading error.")
+        print(f"Font '{font_name}' not found. Using Pillow's default font.")
         date_font = ImageFont.load_default()
         summary_font = ImageFont.load_default()
     

@@ -90,7 +90,7 @@ class Agent:
             remaining_words = words[:-words_to_forget]
             self.system_state.conversation_history = [" ".join(remaining_words)] # Re-join as a single entry for simplicity
             
-            # Generate confirmation
+            # Generate confirmation - Unchanged, already uses 'conversation'
             confirmation_result = await self.chains['forget_confirm'].ainvoke(
                 {"conversation": " ".join(remaining_words)}
             )
