@@ -73,7 +73,7 @@ rag_conversation_chain = rag_conversation_prompt | llm_mini | StrOutputParser()
 def get_chains():
     """Returns a dictionary of all initialized chains."""
     return {
-        "emotion": emotion_analysis_chain,
+        "emotion_analysis": emotion_analysis_chain,
         "summary_full": daily_summary_full_chain,
         "summary_short": daily_summary_short_chain,
         "forget_confirm": forget_confirmation_chain,

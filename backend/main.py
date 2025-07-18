@@ -372,12 +372,18 @@ async def real_time_emotion_analysis():
             agent.system_state.conversation_history.append(text)
 
             # Analyze emotion
-            emotion_result = await agent.chains['emotion'].ainvoke({"text": text})
+            emotion_result = await agent.chains['emotion_analysis'].ainvoke({"text": text})
             emotion = emotion_result.get("text_emotion", "neutral")
             logger.info(f"[Emotion] {emotion}")
 
-            # Send light effect to projector
-            await light_control_tool.set_light_effect(emotion)
+            # Check for sleep trigger
+            if emotion == 'sleep':
+                logger.info("Sleep intention detected. Triggering daily summary.")
+                # process_daily_summary handles its own light effect ("SLEEP")
+                await agent.process_daily_summary()
+            else:
+                # Send light effect to projector for other emotions
+                await light_control_tool.set_light_effect(emotion)
 
         except queue.Empty:
             await asyncio.sleep(0.1)

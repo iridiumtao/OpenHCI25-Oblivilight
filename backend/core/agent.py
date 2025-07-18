@@ -107,6 +107,10 @@ class Agent:
 
     async def process_daily_summary(self):
         """Handles the end-of-day summary, storage, and card generation."""
+        if self.system_state.is_processing:
+            logger.warning("Daily summary process already active. Ignoring new trigger.")
+            return
+
         self.system_state.is_listening = False
         self.system_state.is_processing = True
         await self.light_control_tool.set_light_effect("SLEEP", is_mode=True)
