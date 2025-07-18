@@ -23,8 +23,13 @@ PROMPTS = load_prompts()
 
 # --- Initialize LLM ---
 # Using a generic name, can be swapped with other models if needed
-llm = ChatOpenAI(
+llm_nano = ChatOpenAI(
     model=os.getenv("OPENAI_MODEL_NAME", "gpt-4.1-nano"),
+    temperature=float(os.getenv("OPENAI_TEMPERATURE", 0.7))
+)
+
+llm_mini = ChatOpenAI(
+    model=os.getenv("OPENAI_MODEL_NAME", "gpt-4.1-mini"),
     temperature=float(os.getenv("OPENAI_TEMPERATURE", 0.7))
 )
 
@@ -34,35 +39,35 @@ llm = ChatOpenAI(
 emotion_prompt_template = PROMPTS["emotion_analysis"]["system_prompt"]
 logger.info(f"Emotion analysis prompt template: {emotion_prompt_template}")
 emotion_analysis_prompt = ChatPromptTemplate.from_template(emotion_prompt_template)
-emotion_analysis_chain = emotion_analysis_prompt | llm | JsonOutputParser()
+emotion_analysis_chain = emotion_analysis_prompt | llm_nano | JsonOutputParser()
 
 
 # 2. Daily Summary (Full) Chain
 daily_summary_full_prompt = ChatPromptTemplate.from_template(
     PROMPTS["daily_summary_full"]["system_prompt"]
 )
-daily_summary_full_chain = daily_summary_full_prompt | llm | StrOutputParser()
+daily_summary_full_chain = daily_summary_full_prompt | llm_mini | StrOutputParser()
 
 
 # 3. Daily Summary (Short) Chain
 daily_summary_short_prompt = ChatPromptTemplate.from_template(
     PROMPTS["daily_summary_short"]["system_prompt"]
 )
-daily_summary_short_chain = daily_summary_short_prompt | llm | StrOutputParser()
+daily_summary_short_chain = daily_summary_short_prompt | llm_mini | StrOutputParser()
 
 
 # 4. Forget Confirmation Chain
 forget_confirmation_prompt = ChatPromptTemplate.from_template(
     PROMPTS["forget_confirmation"]["system_prompt"]
 )
-forget_confirmation_chain = forget_confirmation_prompt | llm | StrOutputParser()
+forget_confirmation_chain = forget_confirmation_prompt | llm_nano | StrOutputParser()
 
 
 # 5. RAG Conversation Chain
 rag_conversation_prompt = ChatPromptTemplate.from_template(
     PROMPTS["rag_conversation"]["system_prompt"]
 )
-rag_conversation_chain = rag_conversation_prompt | llm | StrOutputParser()
+rag_conversation_chain = rag_conversation_prompt | llm_mini | StrOutputParser()
 
 
 def get_chains():
