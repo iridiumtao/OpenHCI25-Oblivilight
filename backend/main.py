@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-from backend.core.agent import system_state, SystemState
+from backend.core.agent import agent
 from backend.core.chains import get_chains
 from backend.core.tools import (
     create_memory,
@@ -17,8 +17,10 @@ from backend.core.tools import (
     generate_card_image,
     LightControlTool,
 )
-from backend.services.stt_service import transcribe_realtime, transcribe_full
+from backend.services.stt_service import transcribe_realtime
+from backend.services.audio_service import audio_q, start_mic_thread
 import numpy as np
+import queue
 
 # --- App Initialization ---
 load_dotenv()
@@ -65,6 +67,10 @@ class UpdateSummary(BaseModel):
 # --- WebSocket Endpoint ---
 @app.websocket("/ws/projector")
 async def websocket_endpoint(websocket: WebSocket):
+
+    # 功能: 建立與前端投影頁面的長連線，用於後端主動推送燈效指令。
+    # 訊息格式 (後端 -> 前端): {"type": "SET_EMOTION", "payload": {"emotion": "<emotion_label>"}}
+    # 或 {"type": "SET_MODE", "payload": {"mode": "<mode_name>"}}。
     await manager.connect(websocket)
     try:
         while True:
@@ -82,8 +88,8 @@ async def device_signal(payload: DeviceSignal):
 
     logger.info(f"Received signal: {payload.signal}")
     
-    # Placeholder for agent logic
-    # Example: await agent.handle_signal(payload.signal)
+    # Delegate signal handling to the agent
+    asyncio.create_task(agent.handle_signal(payload.signal))
     
     return {"status": "ok", "message": f"Signal '{payload.signal}' received and is being processed."}
 
@@ -108,42 +114,81 @@ async def inject_context(payload: InjectContext):
     if not payload.context:
         raise HTTPException(status_code=400, detail="Context cannot be empty.")
     
-    system_state.injected_context = payload.context
+    agent.system_state.injected_context = payload.context
     logger.info(f"Injected context: {payload.context[:100]}...")
     
     return {"status": "success", "message": "Context injected."}
 
 
-# --- Background Tasks & Core Logic (To be expanded) ---
+# --- Background Tasks & Core Logic ---
 
 async def real_time_emotion_analysis():
     """
     A background task that continuously processes audio for emotion analysis.
     """
-    # This is a simplified placeholder. A real implementation would use
-    # a proper audio streaming solution as outlined in the spec,
-    # likely involving `sounddevice` in a separate thread feeding a queue.
+    buffer = np.zeros((0, 1), dtype=np.float32)
+    # Configuration based on whisper_realtime.py
+    WINDOW_SEC = 3
+    STEP_SEC = 0.8
+    TRIM_OLD_AUDIO = True
+    MAX_BUFFER_SEC = 5
+    SAMPLE_RATE = 16_000
+    
+    WINDOW_SAMPLES = int(SAMPLE_RATE * WINDOW_SEC)
+    STEP_SAMPLES = int(SAMPLE_RATE * STEP_SEC)
+    MAX_BUFFER_SAMPLES = int(SAMPLE_RATE * MAX_BUFFER_SEC)
+    
+    frames_since_last_transcription = 0
+    loop = asyncio.get_running_loop()
     
     logger.info("Starting real-time emotion analysis loop...")
     while True:
-        await asyncio.sleep(10) # Process every 10 seconds
-        if system_state.is_listening and not system_state.is_processing:
-            logger.info("Processing audio for emotion...")
-            # 1. Get audio chunk (placeholder)
-            # In a real scenario, this comes from an audio queue.
-            # Example: audio_chunk = await audio_queue.get() 
+        if not agent.system_state.is_listening or agent.system_state.is_processing:
+            await asyncio.sleep(0.5) # Wait if not listening or if busy
+            continue
+
+        try:
+            # Get audio frame from the queue
+            frame = await loop.run_in_executor(None, audio_q.get, 0.1)
+            buffer = np.vstack((buffer, frame))
+            frames_since_last_transcription += frame.shape[0]
+
+            # Trim buffer to save memory
+            if TRIM_OLD_AUDIO and len(buffer) > MAX_BUFFER_SAMPLES:
+                buffer = buffer[-MAX_BUFFER_SAMPLES:]
+            elif not TRIM_OLD_AUDIO and len(buffer) > WINDOW_SAMPLES * 2:
+                buffer = buffer[-WINDOW_SAMPLES:]
+
+            # Check if we have enough data to transcribe
+            if len(buffer) < WINDOW_SAMPLES or frames_since_last_transcription < STEP_SAMPLES:
+                continue
+
+            frames_since_last_transcription = 0
+            audio_chunk = buffer[-WINDOW_SAMPLES:].flatten()
+
+            # Transcribe in executor to not block the event loop
+            text = await loop.run_in_executor(None, transcribe_realtime, audio_chunk)
             
-            # 2. Transcribe
-            # text = transcribe_realtime(audio_chunk)
+            if not text:
+                continue
             
-            # 3. Analyze emotion (placeholder)
-            # chains = get_chains()
-            # emotion_result = await chains['emotion'].arun(input=text)
-            
-            # 4. Send to projector
-            # emotion = emotion_result.get("text_emotion", "neutral")
-            # await light_control_tool.set_light_effect(emotion)
-            pass # End of placeholder logic
+            logger.info(f"[Transcript] {text}")
+            agent.system_state.conversation_history.append(text)
+
+            # Analyze emotion
+            emotion_result = await agent.chains['emotion'].arun(input={"text": text})
+            emotion = emotion_result.get("text_emotion", "neutral")
+            logger.info(f"[Emotion] {emotion}")
+
+            # Send light effect to projector
+            await light_control_tool.set_light_effect(emotion)
+
+        except queue.Empty:
+            await asyncio.sleep(0.1)
+            continue
+        except Exception as e:
+            logger.error(f"Error in emotion analysis loop: {e}", exc_info=True)
+            await asyncio.sleep(1)
 
 
 @app.on_event("startup")
@@ -152,8 +197,14 @@ async def startup_event():
     get_chains()
     logger.info("Application startup: Initialized LangChain chains.")
     
-    # Start the background task
-    # asyncio.create_task(real_time_emotion_analysis())
+    # Initialize the agent with necessary tools
+    agent.initialize(light_control_tool)
+    
+    # Start the microphone listener thread
+    start_mic_thread()
+    
+    # Start the background task for real-time analysis
+    asyncio.create_task(real_time_emotion_analysis())
     
     # Set initial state
     await light_control_tool.set_light_effect("IDLE", is_mode=True)

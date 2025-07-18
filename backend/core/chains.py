@@ -23,7 +23,7 @@ PROMPTS = load_prompts()
 # --- Initialize LLM ---
 # Using a generic name, can be swapped with other models if needed
 llm = ChatOpenAI(
-    model_name=os.getenv("OPENAI_MODEL_NAME", "gpt-4o"),
+    model_name=os.getenv("OPENAI_MODEL_NAME", "gpt-4.1-nano"),
     temperature=os.getenv("OPENAI_TEMPERATURE", 0.7),
     openai_api_key=os.getenv("OPENAI_API_KEY")
 )
