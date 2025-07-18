@@ -14,57 +14,69 @@ function VideoPlayer({ index }) {
     "videos/angry.mp4"
   ];
 
-  const interval = 3000; // 每 10 秒切換
+  const interval = 3000; // 必須播放滿 10 秒 3 second is for testing
   const transitionDuration = 1500;
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [nextIndex, setNextIndex] = useState(null);
   const [isSecondActive, setIsSecondActive] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   const [videoA, setVideoA] = useState(videos[0]);
-  const [videoB, setVideoB] = useState(""); // 初始不載入
+  const [videoB, setVideoB] = useState("");
 
   const videoARef = useRef(null);
   const videoBRef = useRef(null);
 
-  // 監聽 props.index 變化，若合法且不是 currentIndex，就更新 nextIndex
+  const nextIndexFromPropRef = useRef(null); // 用來儲存最新的 props.index
+  const timerRef = useRef(null);
+
+  // 持續監聽 props.index 並更新 nextIndexFromPropRef
   useEffect(() => {
     if (
       typeof index === "number" &&
       index >= 0 &&
-      index < videos.length &&
-      index !== currentIndex
+      index < videos.length
     ) {
-      setNextIndex(index);
+      nextIndexFromPropRef.current = index;
     }
   }, [index]);
 
-  // 每 10 秒觸發檢查是否需要切換影片
+  // 啟動每 10 秒的播放切換邏輯
   useEffect(() => {
-    const timer = setInterval(() => {
-      const hasNewIndex =
-        typeof nextIndex === "number" &&
-        nextIndex >= 0 &&
-        nextIndex < videos.length &&
-        nextIndex !== currentIndex;
+    startPlaybackCycle();
+    return () => clearTimeout(timerRef.current); // 清除計時器
+  }, [currentIndex]);
 
-      const targetIndex = hasNewIndex
-        ? nextIndex
-        : currentIndex === 0
-        ? 0
-        : 0; // fallback 為 video[0]
+  const startPlaybackCycle = () => {
+    timerRef.current = setTimeout(() => {
+      const nextIndex = getNextIndex();
 
-      // 如果 fallback 也是目前的影片，不做任何事
-      if (targetIndex === currentIndex) return;
-
-      startTransition(targetIndex);
+      if (nextIndex !== currentIndex) {
+        startTransition(nextIndex);
+      } else {
+        // 沒有要切換的話，重新啟動播放計時
+        startPlaybackCycle();
+      }
     }, interval);
+  };
 
-    return () => clearInterval(timer);
-  }, [nextIndex, currentIndex]);
+  const getNextIndex = () => {
+    const candidate = nextIndexFromPropRef.current;
 
-  // 切換影片
+    const isValid =
+      typeof candidate === "number" &&
+      candidate >= 0 &&
+      candidate < videos.length;
+
+    if (isValid && candidate !== currentIndex) {
+      return candidate;
+    }
+
+    // fallback 條件
+    if (currentIndex === 0) return 0; // 繼續播 video[0]
+    return 0; // fallback to video[0]
+  };
+
   const startTransition = (targetIndex) => {
     if (isTransitioning || targetIndex === currentIndex) return;
 
@@ -73,10 +85,10 @@ function VideoPlayer({ index }) {
 
     if (isSecondActive) {
       setVideoA(nextSrc);
-      console.log("切換到影片 A:", nextSrc, targetIndex + 1);
+      console.log("切換到 Video A:", nextSrc,targetIndex + 1);
     } else {
       setVideoB(nextSrc);
-      console.log("切換到影片 B:", nextSrc, targetIndex + 1);
+      console.log("切換到 Video B:", nextSrc,targetIndex + 1);
     }
 
     setIsTransitioning(true);
@@ -93,15 +105,12 @@ function VideoPlayer({ index }) {
       setCurrentIndex(targetIndex);
       setIsSecondActive(!isSecondActive);
       setIsTransitioning(false);
-      setNextIndex(null); // 清除已使用的待播影片
     }, transitionDuration);
   };
 
-  // 決定當前影片 src
   const currentVideoSrc = isSecondActive ? videoB : videoA;
   const nextVideoSrc = isSecondActive ? videoA : videoB;
 
-  // fallback 處理
   if (videos.length === 0) {
     return (
       <div className="fixed inset-0 z-0 bg-black flex items-center justify-center">
