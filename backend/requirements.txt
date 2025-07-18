@@ -1,0 +1,14 @@
+fastapi
+langchain
+langchain-openai
+uvicorn
+websockets
+openai
+sounddevice
+scipy
+Pillow
+qrcode[pil]
+python-dotenv
+numpy
+torch
+openai-whisper 

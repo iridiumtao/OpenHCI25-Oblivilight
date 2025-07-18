@@ -1,0 +1,9 @@
+{
+  "happy": "static/videos/happy_light.mp4",
+  "sad": "static/videos/sad_light.mp4",
+  "angry": "static/videos/angry_light.mp4",
+  "surprised": "static/videos/surprised_light.mp4",
+  "neutral": "static/videos/neutral_light.mp4",
+  "SLEEP": "static/videos/sleep_mode.mp4",
+  "IDLE": "static/videos/idle_breathing.mp4"
+} 
