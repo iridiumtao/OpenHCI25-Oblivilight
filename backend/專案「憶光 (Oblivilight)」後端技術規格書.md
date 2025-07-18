@@ -33,13 +33,13 @@ backend/
 │   ├── chains.py       \# 集中管理所有 LangChain Chains  
 │   └── tools.py        \# 集中管理所有 LangChain Tools  
 ├── services/  
+│   ├── audio_service.py \# 封裝音訊擷取服務
 │   └── stt\_service.py  \# 封裝本地與雲端的 Whisper 呼叫  
 ├── datastore/          \# (由程式自動建立) 存放日記 JSON 檔案  
 ├── static/videos/      \# (手動建立) 存放燈效影片  
 ├── config/  
 │   ├── prompts.json  
 │   └── video\_mapping.json  
-├── .env.example  
 └── requirements.txt
 ```
 
@@ -83,13 +83,6 @@ backend/
 }
 ```
 
-#### **4.3 .env.example**
-
-```
-OPENAI_API_KEY="your_openai_api_key_here"  
-DATABASE_PATH="datastore/"  
-LOG_LEVEL="INFO"
-```
 ### **5.0 核心邏輯與狀態管理 (core/agent.py)**
 
 #### **5.1 狀態模擬**
@@ -104,32 +97,35 @@ class SystemState:
         self.is_listening = False  
         self.is_processing = False # 用於鎖定型任務 (忘記, 總結)  
         self.injected_context = None # 用於 RAG 模式  
-        # ... 可能還有其他狀態變數，如對話歷史等
+        self.conversation_history = [] # 用於儲存對話歷史
+        # ... 可能還有其他狀態變數
 ```
 應用程式中應存在一個此類別的單例。
 
 #### **5.2 主要工作流程**
 
 1. **即時情緒分析循環**:  
-   * 當 system\_state.is\_listening 為 True 時，啟動一個背景任務。  
-   * 此任務每 10 秒從音訊流中取最新的 10 秒音訊。  
-   * 將音訊傳給 stt\_service 的本地 Whisper 進行辨識(Apple Silicon 環境，參考whisper\_realtime.py)。  
-   * 取得文字後，傳給 emotion\_analysis chain。  
+   * 當 `system_state.is_listening` 為 True 時，`audio_service` 會在背景執行緒中持續錄製音訊，並將音訊塊放入一個共享的佇列 (`Queue`)。
+   * 應用程式的主迴圈或一個獨立的背景任務會從佇列中取得音訊。
+   * 將音訊傳給 `stt_service` 的本地 Whisper (`transcribe_realtime`) 進行辨識。
+   * 取得文字後，累加到 `system_state.conversation_history`。
+   * 將辨識出的文字傳給 `emotion_analysis` chain。  
    * 取得情緒 JSON 後，透過 WebSocket 將情緒標籤發送給前端。  
 2. **忘記記憶流程**:  
    * 接收到 FORGET\_\* signal。  
-   * 設定 system\_state.is\_processing \= True。  
+   * 設定 `system_state.is_processing = True`。  
    * 根據訊號（FORGET\_8S/FORGET\_30S），計算需移除的字數（暫定 25/90 字）。  
-   * 操作對話歷史列表，從後往前移除訊息，直到滿足字數。  
-   * 使用 forget\_confirmation prompt 產生確認摘要。  
+   * 操作 `system_state.conversation_history` 字串列表，從後往前移除訊息，直到滿足字數。  
+   * 使用 `forget_confirmation` prompt 產生確認摘要。  
    * (可選) 呼叫 TTS 服務播放摘要。  
    * 設定 system\_state.is\_processing \= False。  
 3. **每日總結流程**:  
    * 接收到 SLEEP\_TRIGGER signal。  
-   * 設定 system\_state.is\_listening \= False 及 system\_state.is\_processing \= True。  
-   * 將 session 期間錄製的完整音訊傳給 stt\_service 的雲端 Whisper API。  
-   * 使用 daily\_summary\_full prompt 產生完整摘要。  
-   * 使用 daily\_summary\_short prompt 產生 30 字結語。  
+   * 設定 `system_state.is_listening = False` 及 `system_state.is_processing = True`。  
+   * 將 `system_state.conversation_history` 中儲存的完整對話文字組合起來。
+   * （可選，若有儲存完整音檔）將 session 期間錄製的完整音訊傳給 `stt_service` 的雲端 Whisper API (`transcribe_full`)。
+   * 使用 `daily_summary_full` prompt 產生完整摘要。  
+   * 使用 `daily_summary_short` prompt 產生 30 字結語。  
    * 呼叫 database\_tool 的 create\_memory 存檔並取得 uuid。  
    * 呼叫 printer\_tool 的 generate\_card\_image 生成卡片圖片。  
    * 重設所有 session 狀態，回到 IDLE。  
@@ -174,19 +170,25 @@ class SystemState:
 
 ### **7.0 詳細模組功能實現**
 
-#### **7.1 services/stt\_service.py**
+#### **7.1 services/audio\_service.py**
+*   **功能**: 負責從麥克風即時擷取音訊。
+*   應包含一個 `start_mic_thread` 函式，用於啟動一個背景監聽執行緒。
+*   該執行緒使用 `sounddevice` 函式庫，持續錄製音訊。
+*   當 `system_state.is_listening` 為 `True` 時，將錄製到的音訊塊 (Numpy Array) 放入一個全域共享的 `queue.Queue` 中，供其他模組（如 `core/agent.py`）消費。
 
-* 應包含兩個函式：  
-  * transcribe\_realtime(audio\_chunk): 載入本地 Whisper small 模型，對傳入的音訊塊進行辨識。  
-  * transcribe\_full(audio\_file\_path): 使用 openai client，呼叫雲端 Whisper API 對完整音訊檔案進行辨識。
+#### **7.2 services/stt\_service.py**
 
-#### **7.2 core/tools.py \- Database Tool**
+*   應包含兩個函式：  
+    *   `transcribe_realtime(audio_chunk)`: 載入本地 Whisper (`small`) 模型，對傳入的音訊塊 (`Numpy Array`) 進行辨識。它不直接處理音訊錄製。
+    *   `transcribe_full(audio_file_path)`: 使用 `openai` client，呼叫雲端 Whisper API 對完整音訊檔案進行辨識。
 
-* create\_memory(summary\_data): 生成 uuid.uuid4()，將 summary\_data (一個 dict) 寫入 datastore/{uuid}.json。  
-* read\_memory(uuid): 讀取並回傳 datastore/{uuid}.json 的內容。  
-* update\_memory(uuid, update\_data): 讀取、更新、並寫回 datastore/{uuid}.json。
+#### **7.3 core/tools.py \- Database Tool**
 
-#### **7.3 core/tools.py \- Printer Tool**
+* create\_memory(summary\_data): 生成 `uuid.uuid4()`，將 `summary_data` (一個 dict) 寫入 `datastore/{uuid}.json`。  
+* read\_memory(uuid): 讀取並回傳 `datastore/{uuid}.json` 的內容。  
+* update\_memory(uuid, update\_data): 讀取、更新、並寫回 `datastore/{uuid}.json`。
+
+#### **7.4 core/tools.py \- Printer Tool**
 
 * generate\_card\_image(date\_str, short\_summary, qr\_data, output\_path):  
   * 使用 Pillow 建立一張 1080x720 的米黃色 (\#FDF6E3) 背景圖片。  
@@ -195,18 +197,20 @@ class SystemState:
   * 在 (60, 200\) 位置繪製 30 字結語 (字號 72)。  
   * 使用 qrcode 生成一個 250x250 的 QR Code 圖片。  
   * 將 QR Code 貼到 (780, 470\) 的位置。  
-  * 將最終圖片儲存到 output\_path。
+  * 將最終圖片儲存到 `output_path`。
 
-#### **7.4 core/tools.py \- Light Control Tool**
+#### **7.5 core/tools.py \- Light Control Tool**
 
-* set\_light\_effect(effect\_name): 此函式應與 main.py 中的 WebSocket 管理器互動，將對應的指令（如 {"type": "SET\_EMOTION", "payload": {"emotion": "happy"}}）發送給所有已連接的客戶端。
+* set\_light\_effect(effect\_name): 此函式應與 `main.py` 中的 WebSocket 管理器互動，將對應的指令（如 `{"type": "SET_EMOTION", "payload": {"emotion": "happy"}}`）發送給所有已連接的客戶端。
 
-#### **7.5 core/agent.py**
+#### **7.6 core/agent.py**
 
-* 此檔案應包含 SystemState 類別。  
-* 應包含一個主控類別或一系列函式，用於初始化 LCEL (LangChain Expression Language)、Tools，並根據 API 傳來的指令，調用正確的工作流程。
+*   此檔案應包含 `SystemState` 類別。  
+*   應包含一個主控類別 `Agent`，用於初始化 LCEL (LangChain Expression Language)、Tools。
+*   `Agent` 應負責從 `audio_service` 的佇列中獲取音訊，傳遞給 `stt_service` 進行即時辨識。
+*   `Agent` 應根據 API 傳來的指令，調用正確的工作流程（如 `process_daily_summary`, `process_forget_memory` 等）。
 
-#### **7.6 core/chains.py**
+#### **7.7 core/chains.py**
 
-* 此檔案應初始化所有需要的 LCEL，並預先綁定從 prompts.json 讀取到的 Prompt 模板。
+* 此檔案應初始化所有需要的 LCEL，並預先綁定從 `prompts.json` 讀取到的 Prompt 模板。
 
