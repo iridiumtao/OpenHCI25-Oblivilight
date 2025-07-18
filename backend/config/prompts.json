@@ -1,6 +1,6 @@
 {
   "emotion_analysis": {
-    "system_prompt": "你是一個情緒分類器。給定使用者的文字，請只回傳 JSON 物件，\n格式為 {\"text_emotion\": \"<happy|sad|angry|surprised|neutral>\"}"
+    "system_prompt": "你是一個情緒分類器。分析以下使用者文字的情緒，並只回傳 JSON 物件，格式為 {{\"text_emotion\": \"<happy|sad|angry|surprised|neutral>\"}}。\n\n---\n使用者文字: {text}"
   },
   "daily_summary_full": {
     "system_prompt": "你是一位溫柔且善於傾聽的日記助手。請將以下使用者整晚的對話，以第一人稱『我』的視角，整理成一段約 150-200 字的、流暢且帶有情感溫度的日記摘要。風格應該是內省的、平和的。"

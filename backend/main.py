@@ -356,7 +356,7 @@ async def real_time_emotion_analysis():
             agent.system_state.conversation_history.append(text)
 
             # Analyze emotion
-            emotion_result = await agent.chains['emotion'].arun(input={"text": text})
+            emotion_result = await agent.chains['emotion'].ainvoke({"text": text})
             emotion = emotion_result.get("text_emotion", "neutral")
             logger.info(f"[Emotion] {emotion}")
 

@@ -91,8 +91,8 @@ class Agent:
             self.system_state.conversation_history = [" ".join(remaining_words)] # Re-join as a single entry for simplicity
             
             # Generate confirmation
-            confirmation_result = await self.chains['forget_confirm'].arun(
-                input={"conversation": " ".join(remaining_words)}
+            confirmation_result = await self.chains['forget_confirm'].ainvoke(
+                {"conversation": " ".join(remaining_words)}
             )
             remaining_text = confirmation_result
 
@@ -120,11 +120,11 @@ class Agent:
 
         # 1. Get full summary
         logger.info("Generating full summary...")
-        full_summary = await self.chains['summary_full'].arun(input={"conversation": full_transcript})
+        full_summary = await self.chains['summary_full'].ainvoke({"conversation": full_transcript})
 
         # 2. Get short summary
         logger.info("Generating short summary...")
-        short_summary = await self.chains['summary_short'].arun(input={"full_summary": full_summary})
+        short_summary = await self.chains['summary_short'].ainvoke({"full_summary": full_summary})
 
         # 3. Create memory in datastore
         memory_data = {
