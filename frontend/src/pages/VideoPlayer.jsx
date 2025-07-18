@@ -14,29 +14,29 @@ function VideoPlayer() {
     "videos/angry.mp4"
   ];
 
-  const interval = 10000; // 每 10 秒切換一次
-  const transitionDuration = 1500; // 轉場動畫 1.5 秒
+  const interval = 10000;
+  const transitionDuration = 1500;
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [showSecondVideo, setShowSecondVideo] = useState(false);
+  const [isSecondActive, setIsSecondActive] = useState(false); // 對應原本 showSecondVideo
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [video1Src, setVideo1Src] = useState("");
-  const [video2Src, setVideo2Src] = useState("");
+  const [videoA, setVideoA] = useState("");
+  const [videoB, setVideoB] = useState("");
 
-  const video1Ref = useRef(null);
-  const video2Ref = useRef(null);
+  const videoARef = useRef(null);
+  const videoBRef = useRef(null);
 
-  // 初始化第一個影片
+  // 初始化第一與第二影片
   useEffect(() => {
     if (videos.length > 0) {
-      setVideo1Src(videos[0]);
+      setVideoA(videos[0]);
       if (videos.length > 1) {
-        setVideo2Src(videos[1]);
+        setVideoB(videos[1]);
       }
     }
   }, []);
 
-  // 自動播放邏輯
+  // 自動切換邏輯
   useEffect(() => {
     if (videos.length <= 1) return;
 
@@ -51,12 +51,13 @@ function VideoPlayer() {
     if (videos.length <= 1 || isTransitioning) return;
 
     const nextIndex = (currentIndex + 1) % videos.length;
-    const nextVideoRef = showSecondVideo ? video1Ref : video2Ref;
+    const nextVideoRef = isSecondActive ? videoARef : videoBRef;
 
-    if (showSecondVideo) {
-      setVideo1Src(videos[nextIndex]);
+    // 預載下一個影片
+    if (isSecondActive) {
+      setVideoA(videos[nextIndex]);
     } else {
-      setVideo2Src(videos[nextIndex]);
+      setVideoB(videos[nextIndex]);
     }
 
     setIsTransitioning(true);
@@ -71,12 +72,11 @@ function VideoPlayer() {
 
     setTimeout(() => {
       setCurrentIndex(nextIndex);
-      setShowSecondVideo(!showSecondVideo);
+      setIsSecondActive(!isSecondActive);
       setIsTransitioning(false);
     }, transitionDuration);
   };
 
-  // 沒影片的 fallback
   if (videos.length === 0) {
     return (
       <div className="fixed inset-0 z-0 bg-black flex items-center justify-center">
@@ -85,7 +85,6 @@ function VideoPlayer() {
     );
   }
 
-  // 如果只有一部影片
   if (videos.length === 1) {
     return (
       <div className="fixed inset-0 z-0 bg-black">
@@ -105,43 +104,48 @@ function VideoPlayer() {
     );
   }
 
+  const currentVideoSrc = isSecondActive ? videoB : videoA;
+  const nextVideoSrc = isSecondActive ? videoA : videoB;
+
   return (
     <div className="fixed inset-0 z-0 bg-black">
-      {/* Video 1 */}
+      {/* Video A */}
       <video
-        ref={video1Ref}
+        ref={videoARef}
         className="w-full h-full object-cover absolute inset-0"
         autoPlay
         muted
         playsInline
         controls={false}
         loop
-        src={video1Src}
+        src={videoA}
         style={{
-          opacity: showSecondVideo
+          opacity: isSecondActive
             ? isTransitioning ? 1 : 0
             : isTransitioning ? 0 : 1,
           transition: `opacity ${transitionDuration}ms ease-in-out`,
-          zIndex: showSecondVideo ? 2 : 1
+          zIndex: isSecondActive ? 2 : 1
         }}
       />
-      {/* Video 2 */}
+
+      {/* Video B */}
       <video
-        ref={video2Ref}
+        ref={videoBRef}
         className="w-full h-full object-cover absolute inset-0"
         muted
         playsInline
         controls={false}
         loop
-        src={video2Src}
+        src={videoB}
         style={{
-          opacity: showSecondVideo
+          opacity: isSecondActive
             ? isTransitioning ? 0 : 1
             : isTransitioning ? 1 : 0,
           transition: `opacity ${transitionDuration}ms ease-in-out`,
-          zIndex: showSecondVideo ? 1 : 2
+          zIndex: isSecondActive ? 1 : 2
         }}
       />
+
       <div className="absolute bottom-4 right-4 text-white text-sm bg-black/60 px-2 py-1 rounded z-10">
         Now playing: Video {currentIndex + 1} / {videos.length}
       </div>
