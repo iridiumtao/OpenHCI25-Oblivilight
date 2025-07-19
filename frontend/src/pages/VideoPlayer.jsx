@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-function VideoPlayer({
-  index,
-  isHandWaving = false,
-  onHandWavingChange,
-  isSleeping = false,
-}) {
+function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
   const videos = [
     "videos/neutral.mp4",
     "videos/happy.mp4",
@@ -226,12 +221,6 @@ function VideoPlayer({
 
   const currentVideoSrc = isSecondActive ? videoB : videoA;
   const nextVideoSrc = isSecondActive ? videoA : videoB;
-
-  if (isSleeping) {
-    return (
-      <div className="fixed inset-0 z-50 bg-black animate-fade-in"></div>
-    );
-  }
 
   if (videos.length === 0) {
     return (
