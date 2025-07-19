@@ -32,9 +32,9 @@ graph TD
         C["<B>AI 代理</B><br/>(LangChain)"]
         D["<B>WebSocket 管理器</B>"]
         E["<B>STT 服務</B><br/>(Whisper)"]
-        F["<B>TTS 服務</B><br/>(Yating)"]
+        F["<B>TTS 服務</B><br/>(Yating/TTS-1-HD)"]
         M["<B>日記資料庫</B>"]
-        N["<B>OpenAI API</B>"]
+        N["<B>gpt-4.1-nano/mini</B>"]
     end
 
     A -- 1.語音或觸碰互動 --> H;
@@ -63,7 +63,7 @@ graph TD
 -   **非同步伺服器**: Uvicorn
 -   **WebSocket**: websockets
 -   **語音轉文字 (STT)**: OpenAI Whisper
--   **文字轉語音 (TTS)**: Yating
+-   **文字轉語音 (TTS)**: Yating/TTS-1-HD
 -   **硬體通訊**: PySerial
 
 ## 3. 環境設置
@@ -140,7 +140,7 @@ uvicorn backend.main:app --reload --port 8000
 在 **第二個終端機** 中，從 **專案根目錄** 執行以下指令來啟動硬體通訊服務：
 
 ```bash
-python hardware/hardware_gateway.py
+python hardware/arduino_gateway.py
 ```
 此閘道器負責監聽來自 Arduino 的序列埠訊號，並將其轉發給核心後端。同時，它也會接收來自後端的指令，以控制硬體（如印表機）。
 
@@ -171,6 +171,7 @@ python hardware/hardware_gateway.py
         -   `IDLE`: 閒置狀態，通常是呼吸燈效果。
         -   `SLEEP`: 進入睡眠總結流程時的狀態。
         -   `FORGET`: 執行遺忘記憶功能時的狀態。
+        -   `REWIND`: 執行回顧記憶功能時的狀態。
 
 ### 6.2 硬體訊號: `POST /api/device/signal`
 
@@ -179,7 +180,7 @@ python hardware/hardware_gateway.py
     ```json
     {"signal": "SIGNAL_TYPE"}
     ```
-    其中 `SIGNAL_TYPE` 可以是 `"WAKE_UP"`, `"SLEEP_TRIGGER"`, `"FORGET_8S"`, `"FORGET_30S"`。
+    其中 `SIGNAL_TYPE` 可以是 `"WAKE_UP"`, `"SLEEP"`, `"REWIND"`, `"FORGET"`。
 -   **成功回應 (200 OK)**:
     ```json
     {"status": "ok", "message": "Signal 'WAKE_UP' received and is being processed."}

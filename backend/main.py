@@ -221,7 +221,7 @@ async def device_signal(payload: DeviceSignal):
     }
     ```
     """
-    valid_signals = ["FORGET_8S", "FORGET_30S", "SLEEP_TRIGGER", "WAKE_UP"]
+    valid_signals = ["WAKE_UP", "SLEEP", "REWIND", "FORGET"]
     if payload.signal not in valid_signals:
         raise HTTPException(status_code=400, detail="Invalid signal type.")
 

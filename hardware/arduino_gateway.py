@@ -86,19 +86,25 @@ def listen_to_arduino():
                 
                 print(f"[Arduino Said] {line}")
 
+                # TODO: 揮手遺忘、蓋住回顧、觸碰開機
+
                 # --- 在這裡定義來自 Arduino 的訊號與對應的後端 API 訊號 ---
-                if "WAVEDETECTED_START" in line:
+                if "WAKEUP_SIGNAL" in line:
                     signal = "WAKE_UP"
-                    print(f"偵測到揮手，準備發送 '{signal}' 訊號到主後端...")
+                    print(f"偵測到觸碰開機，準備發送 '{signal}' 訊號到主後端...")
                     requests.post(MAIN_BACKEND_URL, json={"signal": signal})
-                elif "WAVEDETECTED_END" in line:
-                    signal = "SLEEP_TRIGGER"
-                    print(f"偵測到蓋手，準備發送 '{signal}' 訊號到主後端...")
+                elif "REWIND_SIGNAL" in line:
+                    signal = "REWIND"
+                    print(f"偵測到蓋住回顧，準備發送 '{signal}' 訊號到主後端...")
                     requests.post(MAIN_BACKEND_URL, json={"signal": signal})
-                # ... 你可以在這裡添加更多 else if 來處理不同的硬體訊號
+                elif "SLEEP_SIGNAL" in line:
+                    signal = "SLEEP"
+                    print(f"偵測到觸碰關機睡眠，準備發送 '{signal}' 訊號到主後端...")
+                    requests.post(MAIN_BACKEND_URL, json={"signal": signal})
                 elif "FORGET_SIGNAL" in line:
-                    # 我們預設使用 8 秒的遺忘訊號，可以根據需求調整為 FORGET_30S
-                    requests.post(MAIN_BACKEND_URL, json={"signal": "FORGET_8S"})
+                    signal = "FORGET"
+                    print(f"偵測到揮手遺忘，準備發送 '{signal}' 訊號到主後端...")
+                    requests.post(MAIN_BACKEND_URL, json={"signal": signal})
 
             except requests.exceptions.RequestException as e:
                 print(f"錯誤：無法連接到主後端 ({MAIN_BACKEND_URL})。請確保後端服務正在運行。")

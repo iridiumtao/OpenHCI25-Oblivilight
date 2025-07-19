@@ -49,7 +49,7 @@
 │   │   └── prompts.json  
 │   └── requirements.txt
 └── hardware/
-    └── hardware_gateway.py # 獨立的硬體通訊服務
+    └── arduino_gateway.py # 獨立的硬體通訊服務
 ```
 
 ### **4.0 設定檔 (Configuration Files)**
@@ -114,11 +114,12 @@ class SystemState:
 2.  **硬體訊號處理**:
     *   所有來自硬體的訊號（透過 `/api/device/signal`）都會被路由到 `agent.handle_signal` 方法。
     *   **`WAKE_UP`**: 設定 `system_state.is_listening = True`，並重設對話歷史，準備開始新的對話。
-    *   **`SLEEP_TRIGGER`**: 呼叫 `agent.process_daily_summary` 流程。
-    *   **`FORGET_8S` / `FORGET_30S`**: 呼叫 `agent.process_forget_memory` 流程。
+    *   **`SLEEP`**: 呼叫 `agent.process_daily_summary` 流程。
+    *   **`REWIND`**: 觸發前端燈效。
+    *   **`FORGET`**: 呼叫 `agent.process_forget_memory` 流程。
 3.  **忘記記憶流程**:
     *   設定 `system_state.is_processing = True`。
-    *   根據訊號，計算需移除的字數（`FORGET_8S` 約 30 字，`FORGET_30S` 約 60 字）。
+    *   根據訊號，計算需移除的字數。
     *   操作 `system_state.conversation_history` 列表，從後往前移除訊息，直到滿足字數。
     *   使用 `forget_confirmation` prompt 產生確認摘要。
     *   呼叫 `tts_service` 播放摘要語音，給予使用者聽覺回饋。
@@ -150,7 +151,7 @@ class SystemState:
 
 * **路由**: POST /api/device/signal  
 * **功能**: **接收來自獨立運行的「硬體閘道器」的訊號**，觸發後端核心行為。  
-* **請求 Body**: {"signal": "<signal_type>"}，signal_type 可為 "FORGET_8S", "FORGET_30S", "SLEEP_TRIGGER", "WAKE_UP"。  
+* **請求 Body**: {"signal": "<signal_type>"}，signal_type 可為 "WAKE_UP", "SLEEP", "REWIND", "FORGET"。
 * **成功回應**: 200 OK {"status": "ok", "message": "Signal 'WAKE_UP' received and is being processed."}。
 * **錯誤回應**: 400 Bad Request {"detail": "Invalid signal type."}。
 
@@ -208,7 +209,7 @@ class SystemState:
 *   **職責**: 此工具類別 (`CardAndPrinterTool`) 整合了卡片圖片生成與觸發硬體列印的功能。
 *   `generate_and_print_card(date_str, short_summary, qr_data)`:
     *   **生成圖片**: 使用 Pillow 建立一張包含日期、結語和 QR Code 的卡片圖片，並儲存於本地。
-    *   **觸發列印**: 使用 `requests` 向 `hardware_gateway.py` 服務的 `/hardware/command` 端點發送一個 `{"command": "PRINT_CARD"}` 的 POST 請求。
+    *   **觸發列印**: 使用 `requests` 向 `arduino_gateway.py` 服務的 `/hardware/command` 端點發送一個 `{"command": "PRINT_CARD"}` 的 POST 請求。
     *   Agent 在每日總結流程的最後，會呼叫此方法來完成實體卡片的產出。
 
 #### **7.6 core/tools.py \- Light Control Tool**
@@ -236,11 +237,11 @@ class SystemState:
 
 ### **8.0 硬體整合 (Hardware Integration)**
 
-專案的硬體互動由一個獨立的 Python 腳本 `hardware/hardware_gateway.py` 負責，它扮演著「硬體閘道器」的角色。
+專案的硬體互動由一個獨立的 Python 腳本 `hardware/arduino_gateway.py` 負責，它扮演著「硬體閘道器」的角色。
 
 #### **8.1 職責**
 
-*   **監聽 Arduino**: 持續透過 `pyserial` 監聽來自 Arduino 的序列埠訊息 (如 `WAVEDETECTED_START`)。
+*   **監聽 Arduino**: 持續透過 `pyserial` 監聽來自 Arduino 的序列埠訊息 (如 `WAKEUP_SIGNAL`, `REWIND_SIGNAL`, `SLEEP_SIGNAL`, `FORGET_SIGNAL`)。
 *   **轉發訊號**: 將接收到的硬體訊息，轉換成定義好的訊號 (如 `WAKE_UP`)，並透過 HTTP POST 請求發送至主後端 `main.py` 的 `/api/device/signal` 端點。
 *   **接收指令**: 運行一個迷你的 FastAPI 伺服器，開放 `/hardware/command` 端點。
 *   **執行指令**: 當收到來自 `core/tools.py` 的指令時 (如 `PRINT_CARD`)，透過序列埠將對應的指令 (如 `PRINT_ON`) 發送給 Arduino。
@@ -254,7 +255,7 @@ class SystemState:
 uvicorn backend.main:app --reload --port 8000
 
 # 啟動硬體閘道器 (在另一個終端機)
-python hardware/hardware_gateway.py
+python hardware/arduino_gateway.py
 ```
 
 這種分離式架構確保了硬體通訊的穩定性不會影響核心後端服務。

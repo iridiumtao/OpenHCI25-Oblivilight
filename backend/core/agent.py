@@ -142,8 +142,13 @@ class Agent:
             self.system_state.conversation_history = []
             self.system_state.is_listening = True
             await self.light_control_tool.set_light_effect("neutral") # Or a specific wake-up light
-        elif signal == "SLEEP_TRIGGER":
+        elif signal == "SLEEP":
             await self.process_daily_summary()
+        elif signal == "REWIND":
+            logger.info("Rewind signal received. Broadcasting to frontend.")
+            await self.light_control_tool.set_light_effect("REWIND", is_mode=True)
+            # You can add more logic here if the backend needs to do something
+            # for rewind, e.g., fetching past memories.
         elif signal in ["FORGET", "FORGET_10S", "FORGET_8S", "FORGET_30S"]:
             await self.process_forget_memory(signal)
         else:
