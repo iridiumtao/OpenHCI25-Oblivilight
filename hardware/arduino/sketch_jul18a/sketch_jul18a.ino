@@ -1,7 +1,7 @@
-// #include <Servo.h> 
+// #include <Servo.h>
 // #include <Unistep2.h>
 #include <Stepper.h>
-#include <ArduinoJson.h> 
+#include <ArduinoJson.h>
 
 StaticJsonDocument<128> doc;
 
@@ -28,38 +28,34 @@ int waveState = 0;             // 0=等待「遠」、1=等待「近」、2=等�
 unsigned long stateTime = 0;   // 記錄每段開始時間
 unsigned long lastSample = 0;  // 上次取樣時間
 
-// DEBOUNCE SETTING // 
+// DEBOUNCE SETTING //
 
-const unsigned long TOUCH_DEBOUNCE = 150;   // 依實際情況調，大約 100~300 ms
-const unsigned long QR_DEBOUNCE    = 200;
+const unsigned long TOUCH_DEBOUNCE = 150;  // 依實際情況調，大約 100~300 ms
+const unsigned long QR_DEBOUNCE = 200;
 
-bool touchStableState   = false;            // 目前「確認」狀態
-bool touchLastReading   = false;            // 上一次 raw 讀值
+bool touchStableState = false;  // 目前「確認」狀態
+bool touchLastReading = false;  // 上一次 raw 讀值
 unsigned long touchLastChange = 0;
 
-bool qrStableState      = false;
-bool qrLastReading      = false;
+bool qrStableState = false;
+bool qrLastReading = false;
 unsigned long qrLastChange = 0;
 
 //// Light Setting ////
-const int threshold = 860; // 根據實際環境調整
-const unsigned long debounceDelay = 200; // 去彈跳延遲（毫秒）
+const int LIGHT_THRESHOLD = 850;          // 根據實際環境調整
+const unsigned long debounceDelay = 200;  // 去彈跳延遲（毫秒）
 bool lastState = false;
 bool currentState = false;
 unsigned long lastDebounceTime = 0;
 
 
+static bool qrArmed = true;  // 是否允許觸發
+static unsigned long lastQrTime = 0;
 
-int flag = 0;
+const unsigned long QR_STARTUP_BLOCK = 5000;   // 開機後 5 s 內不觸發
 
 // ========= function ========= //
 
-// void motoSpin() {
-//   myservo.write(180);  //旋轉到90度
-//   delay(2000);
-//   myservo.write(0);  //旋轉到180度
-//   delay(1000);
-// }
 
 void newMotoSpin() {
   // stepper.run();
@@ -69,9 +65,9 @@ void newMotoSpin() {
   //   stepper.move(4096);    //正轉一圈
   //   //stepper.move(-4096);  //負數就是反轉，反轉一圈
   // }
-  motor.step(-STEPS_PER_REV*2);
+  motor.step(-STEPS_PER_REV * 2);
   delay(5000);
-  motor.step(STEPS_PER_REV*2);
+  motor.step(STEPS_PER_REV * 2);
   // motor.step(-STEPS_PER_REV);
   // motor.step(STEPS_PER_REV);
   // delay(100);
@@ -82,18 +78,20 @@ float measureDistance() {
   delayMicroseconds(10);
   digitalWrite(TRIG_PIN, LOW);
   unsigned long dur = pulseIn(ECHO_PIN, HIGH, 30000UL);
-  if (dur == 0){
-    return DISTANCE_THRESHOLD+10;
+  if (dur == 0) {
+    return DISTANCE_THRESHOLD + 10;
   }
 
   return dur * SOUND_SPEED / 2.0;
 }
 
 void detectWave(float d, unsigned long t) {
+  // Serial.println("Distance = ");
+  // Serial.println(d);
   switch (waveState) {
     case 0:
       // 等待「遠」
-      if (d > DISTANCE_THRESHOLD ) {
+      if (d > DISTANCE_THRESHOLD) {
         waveState = 1;
         stateTime = t;
         // Serial.println("Wait for far!");
@@ -128,25 +126,24 @@ void resetWave() {
 
 bool debounceDigital(bool raw, bool &lastReading,
                      bool &stableState, unsigned long &lastChange,
-                     unsigned long interval)
-{
+                     unsigned long interval) {
   unsigned long now = millis();
   if (raw != lastReading) {
-    lastChange = now;           // 發生跳動，重新計時
+    lastChange = now;  // 發生跳動，重新計時
     lastReading = raw;
   }
   if (now - lastChange > interval && raw != stableState) {
-    stableState = raw;          // 穩定超過 interval，才算真正改變
-    return true;                // 回傳「狀態剛改變」
+    stableState = raw;  // 穩定超過 interval，才算真正改變
+    return true;        // 回傳「狀態剛改變」
   }
-  return false;                 // 沒有改變
+  return false;  // 沒有改變
 }
 
 
 // ========================= Main ==================== //
 
 void setup() {
-  
+
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
   pinMode(TOUCH_PIN, INPUT);
@@ -178,11 +175,11 @@ void loop() {
   // }
 
 
-   bool touchRaw = digitalRead(TOUCH_PIN);
+  bool touchRaw = digitalRead(TOUCH_PIN);
   if (debounceDigital(touchRaw,
                       touchLastReading, touchStableState,
                       touchLastChange, TOUCH_DEBOUNCE)) {
-    if (touchStableState) {           // 只有由 LOW→HIGH 才送訊號
+    if (touchStableState) {  // 只有由 LOW→HIGH 才送訊號
       Serial.println("WAKEUP_SIGNAL");
     }
   }
@@ -201,23 +198,23 @@ void loop() {
   }
 
   // ============ ✅ Paper Printing (Spinning) Function ============ //
-    // if (Serial.available() > 0) {
-    //   // Serial.println("Serial Good!");
-      
-    //   String cmd = Serial.readStringUntil('\n');
-    //   cmd.trim();  // 去掉潛在的 \r 或空白
+  // if (Serial.available() > 0) {
+  //   // Serial.println("Serial Good!");
 
-    //   // 比對指令
-    //   if (cmd.equals("PRINT_CARD")) {
-    //     newMotoSpin();
-    //   }
-    // }
+  //   String cmd = Serial.readStringUntil('\n');
+  //   cmd.trim();  // 去掉潛在的 \r 或空白
+
+  //   // 比對指令
+  //   if (cmd.equals("PRINT_CARD")) {
+  //     newMotoSpin();
+  //   }
+  // }
 
   if (Serial.available()) {
     String line = Serial.readStringUntil('\n');
     if (!deserializeJson(doc, line)) {
-      const char* cmd = doc["command"];
-      if (strcmp(cmd, "PRINT_CARD") == 0){
+      const char *cmd = doc["command"];
+      if (strcmp(cmd, "PRINT_CARD") == 0) {
         newMotoSpin();
       }
     }
@@ -225,13 +222,38 @@ void loop() {
 
   // ============ ✅ Scanning the QR code ============ //
 
-   int lightValue = analogRead(LIGHT_PIN);
-  bool qrRaw = lightValue > threshold;
+  // int lightValue = analogRead(LIGHT_PIN);
+  // bool qrRaw = lightValue > LIGHT_THRESHOLD;
+  // if (debounceDigital(qrRaw,
+  //                     qrLastReading, qrStableState,
+  //                     qrLastChange, QR_DEBOUNCE)) {
+  //   if (qrStableState) {
+  //     Serial.println("REWIND_SIGNAL");
+  //   }
+  // }
+
+  static bool qrReady  = false;                  // 是否允許觸發
+  static bool qrArmed  = false;                  // 上膛：暗→亮才算一次
+  // unsigned long now = millis();
+
+  // 超過 5 s 才開放觸發
+  if (now > QR_STARTUP_BLOCK) qrReady = true;
+
+  int lightValue = analogRead(LIGHT_PIN);
+  bool qrRaw = lightValue > LIGHT_THRESHOLD;
+
   if (debounceDigital(qrRaw,
                       qrLastReading, qrStableState,
-                      qrLastChange, QR_DEBOUNCE)) {
-    if (qrStableState) {
+                      qrLastChange, QR_DEBOUNCE))
+  {
+    if (qrStableState && qrReady && !qrArmed) {  // 暗→亮
       Serial.println("REWIND_SIGNAL");
+      qrArmed = true;            // 已觸發，等待變暗
+      qrReady = false;           // 鎖住，直到再次變暗
+    }
+    if (!qrStableState) {        // 亮→暗
+      qrArmed = false;           // 解除上膛
+      if (now > QR_STARTUP_BLOCK) qrReady = true; // 重新允許
     }
   }
 
@@ -249,7 +271,7 @@ void loop() {
   //     currentState = reading;
   //     if (currentState) {
   //       Serial.println("REWIND_SIGNAL");
-  //     } 
+  //     }
   //     // else {
   //     //   Serial.println("暗");
   //     // }
@@ -259,6 +281,5 @@ void loop() {
   // lastState = reading;
 
 
-  delay(10); // 100ms 迴圈
-  
+  delay(10);  // 100ms 迴圈
 }
