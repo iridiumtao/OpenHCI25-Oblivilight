@@ -152,6 +152,7 @@ class Agent:
     async def process_forget_memory(self, signal: str):
         """Handles the logic for forgetting the last part of the conversation."""
         self.system_state.is_processing = True
+        await self.light_control_tool.set_light_effect("FORGET", is_mode=True)
         logger.info("Processing 'forget memory' flow...")
 
         # Assuming an average speaking rate of ~3 Chinese characters per second for estimation.

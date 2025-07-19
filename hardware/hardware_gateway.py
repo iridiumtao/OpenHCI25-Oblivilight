@@ -96,8 +96,9 @@ def listen_to_arduino():
                     print(f"偵測到蓋手，準備發送 '{signal}' 訊號到主後端...")
                     requests.post(MAIN_BACKEND_URL, json={"signal": signal})
                 # ... 你可以在這裡添加更多 else if 來處理不同的硬體訊號
-                # elif "FORGET_SIGNAL" in line:
-                #     requests.post(MAIN_BACKEND_URL, json={"signal": "FORGET_8S"})
+                elif "FORGET_SIGNAL" in line:
+                    # 我們預設使用 8 秒的遺忘訊號，可以根據需求調整為 FORGET_30S
+                    requests.post(MAIN_BACKEND_URL, json={"signal": "FORGET_8S"})
 
             except requests.exceptions.RequestException as e:
                 print(f"錯誤：無法連接到主後端 ({MAIN_BACKEND_URL})。請確保後端服務正在運行。")
