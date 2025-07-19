@@ -74,42 +74,53 @@ class Agent:
         self.system_state.is_processing = True
         logger.info("Processing 'forget memory' flow...")
 
-        words_to_forget = 90 if signal == "FORGET_30S" else 25
-        
+        # Assuming an average speaking rate of ~3 Chinese characters per second for estimation.
+        # FORGET_8S: 10s * 3 chars/s ≈ 30 chars
+        # FORGET_30S: 30s * 3 chars/s = 60 chars
+        chars_to_forget = 60 if signal == "FORGET_30S" else 30
+
         if not self.system_state.conversation_history:
             logger.info("Conversation history is empty. Nothing to forget.")
             self.system_state.is_processing = False
             return
 
-        full_text = " ".join(self.system_state.conversation_history)
-        words = full_text.split()
+        full_text = "".join(self.system_state.conversation_history)
+
+        logger.info(f"Full conversation text (char count: {len(full_text)}): {full_text}")
+
+        remaining_text = ""
+        if len(full_text) > chars_to_forget:
+            remaining_text = full_text[:-chars_to_forget]
         
-        remaining_words_list = []
-        if len(words) > words_to_forget:
-            remaining_words_list = words[:-words_to_forget]
+
 
         # Update conversation history based on what remains.
-        self.system_state.conversation_history = [" ".join(remaining_words_list)] if remaining_words_list else []
-        
-        remaining_conversation_text = " ".join(remaining_words_list)
-        
+        # We replace the history with a single entry containing the remaining text.
+        self.system_state.conversation_history = [remaining_text] if remaining_text else []
+
+        # 防止給予TTS過多的上下文，專注於最新的內容
+        if len(remaining_text) > 90:
+            remaining_text = remaining_text[:90]
+
+        logger.info(f"Remaining conversation after forgetting: {remaining_text}")
+
         # Always generate confirmation from the LLM, even if the remaining conversation is empty.
         # The prompt is designed to handle this gracefully.
         confirmation_result = await self.chains['forget_confirm'].ainvoke(
-            {"conversation": remaining_conversation_text}
+            {"conversation": remaining_text}
         )
-        remaining_text = confirmation_result
+        confirmation_message = confirmation_result
 
-        logger.info(f"Remaining conversation: {remaining_text}")
-        
+        logger.info(f"LLM forget confirmation: {confirmation_message}")
+
         # Play the confirmation message using the new TTS service
         try:
             # Running in a separate thread to avoid blocking the async event loop
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, text_to_speech_and_play, remaining_text)
+            await loop.run_in_executor(None, text_to_speech_and_play, confirmation_message)
         except Exception as e:
             logger.error(f"Error playing TTS confirmation: {e}", exc_info=True)
-        
+
         self.system_state.is_processing = False
         logger.info("'Forget memory' flow finished.")
 
