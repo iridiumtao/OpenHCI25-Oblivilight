@@ -8,6 +8,10 @@ import base64
 
 logger = logging.getLogger(__name__)
 
+#    - "OPENAI": Uses OpenAI's TTS (default).
+#    - "YATING": Uses Yating's TTS.
+TTS_PROVIDER = "OPENAI"
+
 
 def text_to_speech_and_play(text: str, voice: str = "nova"):
     """
@@ -134,4 +138,22 @@ def text_to_speech_and_play_yating(text: str):
     except (KeyError, TypeError, base64.binascii.Error) as e:
         logger.error(f"Yating TTS (v3): Failed to parse or decode API response: {e}", exc_info=True)
     except Exception as e:
-        logger.error(f"Yating TTS (v3): An unexpected error occurred: {e}", exc_info=True) 
+        logger.error(f"Yating TTS (v3): An unexpected error occurred: {e}", exc_info=True)
+
+
+def speak(text: str):
+    """
+    Dynamically selects and uses the configured TTS service to speak the text.
+    The selection is based on the `TTS_PROVIDER` global variable.
+
+    """
+    provider = TTS_PROVIDER
+
+    if provider == "YATING":
+        logger.info(f"Routing to Yating TTS for: '{text[:30]}...'")
+        text_to_speech_and_play_yating(text)
+    else:
+        if provider != "OPENAI":
+            logger.warning(f"Unknown TTS_PROVIDER '{provider}'. Defaulting to OpenAI.")
+        logger.info(f"Routing to OpenAI TTS for: '{text[:30]}...'")
+        text_to_speech_and_play(text) 

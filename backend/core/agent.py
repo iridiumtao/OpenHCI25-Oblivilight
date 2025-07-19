@@ -7,10 +7,7 @@ import queue
 from backend.core.chains import get_chains
 from backend.core.state import system_state
 from backend.core.tools import create_memory, CardAndPrinterTool, LightControlTool
-# Temporarily switching to Yating TTS for testing
-from backend.services.tts_service import (
-    text_to_speech_and_play_yating as text_to_speech_and_play,
-)
+from backend.services.tts_service import speak
 from backend.services.stt_service import transcribe_realtime
 from backend.services.audio_service import audio_q
 import logging
@@ -185,7 +182,7 @@ class Agent:
     
             full_text = "".join(self.system_state.conversation_history)
     
-            logger.debug(f"Full conversation text (char count: {len(full_text)}): {full_text}")
+            logger.info(f"Full conversation text (char count: {len(full_text)}): {full_text}")
     
             remaining_text = ""
             if len(full_text) > chars_to_forget:
@@ -201,7 +198,7 @@ class Agent:
             if len(remaining_text) > 90:
                 remaining_text = remaining_text[:90]
     
-            logger.debug(f"Remaining conversation after forgetting: {remaining_text}")
+            logger.info(f"Remaining conversation after forgetting: {remaining_text}")
     
             # Always generate confirmation from the LLM, even if the remaining conversation is empty.
             # The prompt is designed to handle this gracefully.
@@ -216,7 +213,7 @@ class Agent:
             try:
                 # Running in a separate thread to avoid blocking the async event loop
                 loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, text_to_speech_and_play, confirmation_message)
+                await loop.run_in_executor(None, speak, confirmation_message)
             except Exception as e:
                 logger.error(f"Error playing TTS confirmation: {e}", exc_info=True)
         finally:
