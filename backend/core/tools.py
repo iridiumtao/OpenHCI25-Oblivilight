@@ -104,6 +104,7 @@ class CardAndPrinterTool:
         Sends a command to the hardware gateway to start the printing process.
         (This is a private method, the main entry point is `generate_and_print_card`)
         """
+        return False
         try:
             url = f"{HARDWARE_GATEWAY_URL}/hardware/command"
             payload = {"command": "PRINT_CARD"}
@@ -114,7 +115,7 @@ class CardAndPrinterTool:
             return True
         except requests.exceptions.RequestException as e:
             print(f"Error: Could not send command to hardware gateway at {HARDWARE_GATEWAY_URL}.")
-            print(f"Please ensure the hardware_gateway.py service is running and accessible.")
+            print(f"Please ensure the arduino_gateway.py service is running and accessible.")
             print(f"Details: {e}")
             return False
 
