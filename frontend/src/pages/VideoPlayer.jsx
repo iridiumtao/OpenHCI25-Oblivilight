@@ -11,7 +11,7 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
     "videos/peaceful.mp4",
     "videos/depressed.mp4",
     "videos/lonely.mp4",
-    "videos/angry.mp4"
+    "videos/angry.mp4",
   ];
 
   const interval = 10000; // 必須播放滿 10 秒 3 second is for testing
@@ -35,11 +35,7 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
 
   // 持續監聽 props.index 並更新 nextIndexFromPropRef
   useEffect(() => {
-    if (
-      typeof index === "number" &&
-      index >= 0 &&
-      index < videos.length
-    ) {
+    if (typeof index === "number" && index >= 0 && index < videos.length) {
       nextIndexFromPropRef.current = index;
     }
   }, [index]);
@@ -50,7 +46,7 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
       console.log("🫷 Hand waving started");
       // 開始手勢遮罩
       setShowHandWavingOverlay(true);
-      
+
       // 重置當前播放影片的播放時間
       const currentVideoRef = isSecondActive ? videoBRef : videoARef;
       if (currentVideoRef.current) {
@@ -140,7 +136,12 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
   };
 
   const startTransition = (targetIndex) => {
-    if (isTransitioning || targetIndex === currentIndex || showHandWavingOverlay) return;
+    if (
+      isTransitioning ||
+      targetIndex === currentIndex ||
+      showHandWavingOverlay
+    )
+      return;
 
     const nextSrc = videos[targetIndex];
     const nextVideoRef = isSecondActive ? videoARef : videoBRef;
@@ -199,10 +200,10 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
               ? 1
               : 0
             : isTransitioning
-              ? 0
-              : 1,
+            ? 0
+            : 1,
           transition: `opacity ${transitionDuration}ms ease-in-out`,
-          zIndex: isSecondActive ? 2 : 1
+          zIndex: isSecondActive ? 2 : 1,
         }}
       />
 
@@ -221,33 +222,30 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
               ? 0
               : 1
             : isTransitioning
-              ? 1
-              : 0,
+            ? 1
+            : 0,
           transition: `opacity ${transitionDuration}ms ease-in-out`,
-          zIndex: isSecondActive ? 1 : 2
+          zIndex: isSecondActive ? 1 : 2,
         }}
       />
 
       {/* Hand Waving Overlay 遮罩 */}
       {showHandWavingOverlay && (
-        <div 
-          className="absolute inset-0 bg-black/50 flex items-center justify-center z-20"
+        <div
+          className="absolute inset-0 z-20 pointer-events-none"
           style={{
-            backdropFilter: 'blur(2px)'
+            backgroundColor: "rgba(255, 255, 255, 0.1)",
+            backdropFilter: "blur(3px)",
+            mixBlendMode: "lighten",
+            filter: "grayscale(0.3) brightness(1)",
           }}
-        >
-          <div className="text-white text-2xl font-bold bg-black/70 px-6 py-3 rounded-lg">
-            Hand Waving Detected
-          </div>
-        </div>
+        />
       )}
 
       <div className="absolute bottom-4 right-4 text-white text-sm bg-black/60 px-2 py-1 rounded z-10">
         Now playing: Video {currentIndex + 1} / {videos.length}
         {showHandWavingOverlay && (
-          <div className="mt-1 text-xs text-yellow-300">
-            Hand Waving Mode
-          </div>
+          <div className="mt-1 text-xs text-yellow-300">Hand Waving Mode</div>
         )}
       </div>
     </div>
