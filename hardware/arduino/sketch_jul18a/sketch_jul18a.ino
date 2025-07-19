@@ -1,4 +1,8 @@
 #include <Servo.h> 
+// #include <Unistep2.h>
+#include <Stepper.h>
+
+// Unistep2 stepper(4, 5, 6, 7, 4096, 1000);// IN1, IN2, IN3, IN4, 總step數, 每步的延遲(in micros)
 
 const int TRIG_PIN = 9;
 const int ECHO_PIN = 10;
@@ -8,14 +12,16 @@ const int TOUCH_PIN = 2;
 
 const float SOUND_SPEED = 0.0343;  // cm/μs
 
+const int STEPS_PER_REV = 2048;
+// 一定要用 pin1, pin3, pin2, pin4 的順序
+Stepper motor(STEPS_PER_REV, 4, 6, 5, 7);
+
 Servo myservo;  // 建立 SERVO 物件
 
 // 門檻設定
-// const float NEAR_THRESHOLD = 30.0;
-// const float FAR_THRESHOLD = 40.0;
 const float DISTANCE_THRESHOLD = 40;
 const unsigned long MAX_INTERVAL = 1000;
-const unsigned long SAMPLE_INTERVAL = 20;  // 每 50 ms 取樣一次
+const unsigned long SAMPLE_INTERVAL = 20;
 
 int waveState = 0;             // 0=等待「遠」、1=等待「近」、2=等待再「遠」
 unsigned long stateTime = 0;   // 記錄每段開始時間
@@ -33,11 +39,25 @@ unsigned long lastDebounceTime = 0;
 
 // ========= function ========= //
 
-void motoSpin() {
-  myservo.write(180);  //旋轉到90度
-  delay(2000);
-  myservo.write(0);  //旋轉到180度
-  // delay(1000);
+// void motoSpin() {
+//   myservo.write(180);  //旋轉到90度
+//   delay(2000);
+//   myservo.write(0);  //旋轉到180度
+//   delay(1000);
+// }
+
+void newMotoSpin() {
+  // stepper.run();
+
+  // if ( stepper.stepsToGo() == 0 ){ // 如果stepsToGo=0，表示步進馬達已轉完應走的step了
+  //   delay(500);
+  //   stepper.move(4096);    //正轉一圈
+  //   //stepper.move(-4096);  //負數就是反轉，反轉一圈
+  // }
+  motor.step(STEPS_PER_REV);
+  motor.step(STEPS_PER_REV);
+  motor.step(STEPS_PER_REV/2);
+  // delay(100);
 }
 
 float measureDistance() {
@@ -103,15 +123,16 @@ void setup() {
   // delay(50);
 
 
-  myservo.attach(MOTO_PIN);
+  // myservo.attach(MOTO_PIN);
+
+
+  motor.setSpeed(12);
 }
 
 void loop() {
 
   unsigned long now = millis();
 
-
-  // motoSpin();
 
 
   // ============ Turn on the Light ============ //
@@ -143,14 +164,15 @@ void loop() {
 
       // 比對指令
       if (cmd.equals("PRINT_ON")) {
-        motoSpin();
+        // motoSpin();
+        newMotoSpin();
       }
   }
 
   // ============ ✅ Scanning the QR code ============ //
 
   int lightValue = analogRead(LIGHT_PIN);
-  bool reading = lightValue > threshold; // true: 亮, false: 暗
+  bool reading = lightValue > threshold;
 
   if (reading != lastState) {
     // 狀態改變，重設計時器
