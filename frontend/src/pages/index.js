@@ -62,7 +62,13 @@ export default function Home() {
       setIsHandWaving(true);
     }
     setIsSleeping(mode === "SLEEP");
+
     setIsRewindActivated(mode === "REWIND");
+
+    if (mode === "WAKEUP") {
+      setIsSleeping(false);
+    }
+
   }, [mode]);
 
   // --- Keyboard simulation ---
@@ -98,7 +104,6 @@ export default function Home() {
         index={targetIndex}
         isHandWaving={isHandWaving}
         onHandWavingChange={setIsHandWaving}
-        isSleeping={isSleeping}
       />
 
       <div
@@ -111,7 +116,7 @@ export default function Home() {
 
       <div
         className={`absolute top-0 left-0 w-full h-full bg-black transition-opacity duration-300 ${
-          showBlackout
+          showBlackout || isSleeping
             ? "opacity-100 z-10"
             : "opacity-0 z-0 pointer-events-none"
         }`}

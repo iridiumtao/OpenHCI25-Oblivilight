@@ -65,9 +65,6 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Oblivilight Backend", lifespan=lifespan)
 
-# Mount static files for videos
-app.mount("/static", StaticFiles(directory="backend/static"), name="static")
-
 
 # --- WebSocket Connection Manager ---
 class ConnectionManager:
