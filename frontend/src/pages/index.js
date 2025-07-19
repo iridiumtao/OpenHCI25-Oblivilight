@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import VideoPlayer from "./VideoPlayer";
+import RewindPlayer from "./RewindPlayer";
 import { useProjectorSocket } from "../hooks/useProjectorSocket";
 
 const WEBSOCKET_URL = "ws://localhost:8000/ws/projector";
@@ -8,6 +9,9 @@ export default function Home() {
   const [targetIndex, setTargetIndex] = useState(null);
   const [isHandWaving, setIsHandWaving] = useState(false);
   const [isSleeping, setIsSleeping] = useState(false);
+  const [isRewindActivated, setIsRewindActivated] = useState(false);
+  const [showRewind, setShowRewind] = useState(false);
+  const [showBlackout, setShowBlackout] = useState(false);
 
   // --- WebSocket aio ---
   const { emotionIndex, mode, isConnected } = useProjectorSocket(WEBSOCKET_URL);
@@ -20,13 +24,45 @@ export default function Home() {
   }, [emotionIndex]);
 
   useEffect(() => {
+    if (isRewindActivated) {
+      // 啟動黑幕
+      setShowBlackout(true);
+
+      // 短暫延遲後顯示 RewindPlayer
+      const showRewindTimer = setTimeout(() => {
+        setShowRewind(true);
+      }, 700); // 黑幕出現 300ms 後顯示 RewindPlayer
+
+      // 5秒後結束 rewind
+      const endRewindTimer = setTimeout(() => {
+        setIsRewindActivated(false);
+      }, 10000);
+
+      return () => {
+        clearTimeout(showRewindTimer);
+        clearTimeout(endRewindTimer);
+      };
+    } else {
+      // 結束時的處理
+      const hideRewindTimer = setTimeout(() => {
+        setShowRewind(false);
+        // RewindPlayer 隱藏後再隱藏黑幕
+        setTimeout(() => {
+          setShowBlackout(false);
+        }, 300);
+      }, 300);
+
+      return () => clearTimeout(hideRewindTimer);
+    }
+  }, [isRewindActivated]);
+
+  useEffect(() => {
     console.log(`🖥️ Mode from WebSocket: ${mode}`);
     if (mode === "FORGET") {
       setIsHandWaving(true);
     }
     setIsSleeping(mode === "SLEEP");
   }, [mode]);
-
 
   // --- Keyboard simulation ---
   useEffect(() => {
@@ -44,6 +80,11 @@ export default function Home() {
         console.log("🖐️ Hand waving triggered by key");
         setIsHandWaving(true);
       }
+
+      if (key.toLowerCase() === "r") {
+        console.log("⏪ Rewind activated by key");
+        setIsRewindActivated(true);
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -58,6 +99,23 @@ export default function Home() {
         onHandWavingChange={setIsHandWaving}
         isSleeping={isSleeping}
       />
+
+      <div
+        className={`absolute top-0 left-0 w-full h-full transition-opacity duration-300 ${
+          isRewindActivated && showRewind ? "opacity-100 z-20" : "opacity-0 z-0"
+        }`}
+      >
+        <RewindPlayer />
+      </div>
+
+      <div
+        className={`absolute top-0 left-0 w-full h-full bg-black transition-opacity duration-300 ${
+          showBlackout
+            ? "opacity-100 z-10"
+            : "opacity-0 z-0 pointer-events-none"
+        }`}
+      />
+
       <div className="absolute top-4 left-4 bg-black/50 text-white px-3 py-1.5 rounded-lg text-sm z-30">
         WebSocket:{" "}
         <span className={isConnected ? "text-green-400" : "text-red-400"}>
