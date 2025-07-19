@@ -22,11 +22,14 @@ function VideoPlayer({
   const interval = 10000; // 必須播放滿 10 秒 3 second is for testing
   const transitionDuration = 1500;
   const handWavingDuration = 10000; // 10 秒遮罩持續時間
+  const overlayTransitionDuration = 500; // 遮罩淡入淡出時間
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSecondActive, setIsSecondActive] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showHandWavingOverlay, setShowHandWavingOverlay] = useState(false);
+  const [isHandWavingTransitioning, setIsHandWavingTransitioning] =
+    useState(false);
 
   const [nextScheduledIndex, setNextScheduledIndex] = useState(0);
 
@@ -46,6 +49,7 @@ function VideoPlayer({
       nextIndexFromPropRef.current = index;
       setNextScheduledIndex(index);
     }
+    console.log("🎯 Next scheduled index:", nextScheduledIndex);
   }, [index]);
 
   useEffect(() => {
@@ -68,14 +72,13 @@ function VideoPlayer({
       // 開始手勢遮罩
       setShowHandWavingOverlay(true);
 
-      // 重置當前播放影片的播放時間
-      const currentVideoRef = isSecondActive ? videoBRef : videoARef;
-      if (currentVideoRef.current) {
-        currentVideoRef.current.currentTime = 0;
-        currentVideoRef.current.play().catch(() => {
-          // silent autoplay error
-        });
-      }
+      // mask fading in starts
+      setIsHandWavingTransitioning(true);
+
+      // mask fading in ends
+      setTimeout(() => {
+        setIsHandWavingTransitioning(false);
+      }, overlayTransitionDuration);
 
       // 清除現有的播放計時器
       if (timerRef.current) {
@@ -83,15 +86,20 @@ function VideoPlayer({
         timerRef.current = null;
       }
 
-      // 設定 3 秒後移除遮罩
+      // 移除遮罩
       handWavingTimerRef.current = setTimeout(() => {
         console.log("🫷 Hand waving timer completed");
-        setShowHandWavingOverlay(false);
-        // 通知父組件將 isHandWaving 設回 false
-        if (onHandWavingChange) {
-          onHandWavingChange(false);
-        }
-      }, handWavingDuration);
+        setIsHandWavingTransitioning(true);
+
+        setTimeout(() => {
+          setShowHandWavingOverlay(false);
+          setIsHandWavingTransitioning(false);
+          // 通知父組件將 isHandWaving 設回 false
+          if (onHandWavingChange) {
+            onHandWavingChange(false);
+          }
+        }, overlayTransitionDuration);
+      }, handWavingDuration - overlayTransitionDuration); // 提早 overlayTransitionDuration 毫秒開始移除遮罩
     }
 
     return () => {
@@ -115,7 +123,7 @@ function VideoPlayer({
     }
   }, [showHandWavingOverlay, isHandWaving]);
 
-  // 啟動每 3 秒的播放切換邏輯（只有在沒有遮罩時才啟動）
+  // 啟動每 10 秒的播放切換邏輯（只有在沒有遮罩時才啟動）
   useEffect(() => {
     if (!showHandWavingOverlay && !isHandWaving && !isTransitioning) {
       startPlaybackCycle();
@@ -144,7 +152,7 @@ function VideoPlayer({
     }, interval);
   };
   const getNextIndex = () => {
-    // 优先使用最新的 prop index（如果有的话）
+    // 優先取得新的 index prop
     const propIndex = nextIndexFromPropRef.current;
     const isValidPropIndex =
       typeof propIndex === "number" &&
@@ -153,24 +161,22 @@ function VideoPlayer({
       propIndex !== currentIndex;
 
     if (isValidPropIndex) {
-      console.log(`使用 prop index: ${propIndex}`);
+      console.log(`有新的 index, 使用它: ${propIndex}`);
       return propIndex;
     }
 
-    // 如果没有有效的 prop index，使用计划中的下一个索引
+    // 如果沒有有效的 index prop，則使用預設的計劃索引 (neutral)
     if (nextScheduledIndex !== currentIndex) {
-      console.log(`使用计划索引: ${nextScheduledIndex}`);
+      console.log(`使用原訂的: ${nextScheduledIndex}`);
       return nextScheduledIndex;
     }
 
-    // 特殊情况：如果当前是 video[0] 且 prop 也是 0，则不切换
+    // 如果當前已經是 video[0]，且沒有新的 index prop，則不切換
     if (currentIndex === 0 && (propIndex === 0 || propIndex === null)) {
-      console.log("当前已是 video[0] 且 prop 为 0，不切换");
-      return currentIndex; // 返回当前索引，不切换
+      console.log("已經在 video[0]，不切換");
+      return currentIndex; // 不切換，保持在 video[0]
     }
 
-    // 默认 fallback 到 video[0]
-    console.log("fallback 到 video[0]");
     return 0;
   };
 
@@ -291,6 +297,8 @@ function VideoPlayer({
             backdropFilter: "blur(3px)",
             mixBlendMode: "lighten",
             filter: "grayscale(0.3) brightness(1)",
+            opacity: isHandWavingTransitioning ? 0 : 1,
+            transition: `opacity ${overlayTransitionDuration}ms ease-in-out`,
           }}
         />
       )}
