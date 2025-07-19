@@ -103,7 +103,7 @@ def transcribe_full(audio_file_path: str) -> str:
 
     with open(audio_file_path, "rb") as audio_file:
         transcription = cloud_client.audio.transcriptions.create(
-            model="whisper-1", 
+            model="gpt-4o-transcribe", 
             file=audio_file,
             response_format="text"
         )

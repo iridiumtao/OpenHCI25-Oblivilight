@@ -11,4 +11,7 @@ qrcode[pil]
 python-dotenv
 numpy
 torch
-openai-whisper 
+openai-whisper
+playsound==1.2.2
+pyobjc # macOS only
+requests
