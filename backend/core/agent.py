@@ -6,7 +6,7 @@ import queue
 
 from backend.core.chains import get_chains
 from backend.core.state import system_state
-from backend.core.tools import create_memory, generate_card_image, LightControlTool
+from backend.core.tools import create_memory, CardAndPrinterTool, LightControlTool
 # Temporarily switching to Yating TTS for testing
 from backend.services.tts_service import (
     text_to_speech_and_play_yating as text_to_speech_and_play,
@@ -26,6 +26,8 @@ class Agent:
         self.system_state = system_state
         self.chains = get_chains()
         self.light_control_tool = None # Will be set from main.py
+        self.card_printer_tool = CardAndPrinterTool(card_output_dir="datastore")
+        logger.info("Agent initialized.")
 
     def initialize(self, light_control_tool: "LightControlTool"):
         """Initializes the agent with tools that need external context."""
@@ -222,15 +224,15 @@ class Agent:
             await self.light_control_tool.set_light_effect("IDLE", is_mode=True)
             return
 
-        # 1. Get full summary
+        # 1. Get full summary from LLM
         logger.info("Generating full summary...")
         full_summary = await self.chains['summary_full'].ainvoke({"conversation": full_transcript})
 
-        # 2. Get short summary
+        # 2. Get short summary from LLM
         logger.info("Generating short summary...")
         short_summary = await self.chains['summary_short'].ainvoke({"full_summary": full_summary})
 
-        # 3. Create memory in datastore
+        # 3. Save memory to datastore
         memory_data = {
             "full_summary": full_summary,
             "short_summary": short_summary,
@@ -239,20 +241,28 @@ class Agent:
         memory_uuid = create_memory(memory_data)
         logger.info(f"Memory saved with UUID: {memory_uuid}")
 
-        # 4. Generate QR code card
-        # Assuming the frontend URL structure is known
-        qr_data = f"http://localhost:3000/memory/{memory_uuid}" # Example URL
-        card_path = f"datastore/card_{memory_uuid}.png"
-        generate_card_image(
+        # 4. Generate card, save it, and trigger the print job
+        # The tool now handles both image generation and sending the print command
+        logger.info("Generating card and triggering print job...")
+        qr_data = f"http://localhost:3000/memory/{memory_uuid}" # Example URL, should be configurable
+        card_path = self.card_printer_tool.generate_and_print_card(
             date_str=datetime.now().strftime("%Y-%m-%d"),
             short_summary=short_summary,
-            qr_data=qr_data,
-            output_path=card_path
+            qr_data=qr_data
         )
-        
-        logger.info("Daily summary flow finished. Resetting session.")
+
+        if card_path:
+            logger.info(f"Card generation and print trigger process completed. Image at: {card_path}")
+        else:
+            logger.error("Card generation or printing failed.")
+
+        # 5. Reset session for the next day
+        logger.info("Resetting session...")
         self.system_state.reset_session()
+
+        # 6. Set light to idle after finishing
         await self.light_control_tool.set_light_effect("IDLE", is_mode=True)
+        logger.info("'Daily summary' flow finished.")
 
 
 # Singleton instance of the Agent
