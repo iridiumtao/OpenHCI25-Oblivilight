@@ -14,7 +14,7 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
     "videos/angry.mp4",
   ];
 
-  const interval = 10000; // video playing time when there's no new index prop
+  const interval = 5000; // video playing time when there's no new index prop
   const transitionDuration = 1500; // video transition duration
   const handWavingDuration = 5000; // 10 秒遮罩持續時間
   const overlayTransitionDuration = 500; // 遮罩淡入淡出時間
@@ -152,18 +152,11 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
     const isValidPropIndex =
       typeof propIndex === "number" &&
       propIndex >= 0 &&
-      propIndex < videos.length &&
-      propIndex !== currentIndex;
+      propIndex < videos.length;
 
     if (isValidPropIndex) {
       console.log(`有新的 index, 使用它: ${propIndex}`);
       return propIndex;
-    }
-
-    // 如果沒有有效的 index prop，則使用預設的計劃索引 (neutral)
-    if (nextScheduledIndex !== currentIndex) {
-      console.log(`使用原訂的: ${nextScheduledIndex}`);
-      return nextScheduledIndex;
     }
 
     // 如果當前已經是 video[0]，且沒有新的 index prop，則不切換
