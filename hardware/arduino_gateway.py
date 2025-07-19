@@ -63,6 +63,7 @@ def send_command_to_arduino(cmd: str):
         try:
             print(f"正在發送指令到 Arduino: {cmd}")
             ser.write((cmd + '\n').encode('utf-8'))
+            print((cmd + '\n').encode('utf-8'))
             return True
         except Exception as e:
             print(f"發送指令到 Arduino 時出錯: {e}")
@@ -131,7 +132,7 @@ async def execute_hardware_command(command_data: Command):
     
     # --- 在這裡定義後端指令與 Arduino 指令的對應關係 ---
     if cmd == "PRINT_CARD":
-        success = send_command_to_arduino("PRINT_ON")
+        success = send_command_to_arduino("""{"command": "PRINT_CARD"}""")
         if success:
             return {"status": "success", "message": f"指令 '{cmd}' 已成功發送至 Arduino。"}
         else:
