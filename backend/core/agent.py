@@ -131,6 +131,13 @@ class Agent:
         """Main entry point for handling signals from the device."""
         # Handle forget signal with its own lock to prevent race conditions
         if signal in ["FORGET", "FORGET_10S", "FORGET_8S", "FORGET_30S"]:
+            # Only process FORGET if the system is in a listening (wake-up) state.
+            if not self.system_state.is_listening:
+                logger.warning(
+                    f"Forget signal '{signal}' received but agent is not in listening state. Ignoring."
+                )
+                return
+
             if self.system_state.is_forgetting:
                 logger.warning(f"Agent is already forgetting. Signal '{signal}' ignored.")
                 return
@@ -196,7 +203,7 @@ class Agent:
     
             # 防止給予TTS過多的上下文，專注於最新的內容
             if len(remaining_text) > 90:
-                remaining_text = remaining_text[:90]
+                remaining_text = remaining_text[-90:]
     
             logger.info(f"Remaining conversation after forgetting: {remaining_text}")
     

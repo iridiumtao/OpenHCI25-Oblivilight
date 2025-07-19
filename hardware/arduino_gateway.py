@@ -10,7 +10,7 @@ import uvicorn
 
 # --- 設定 ---
 # 請根據實際情況修改
-SERIAL_PORT = '/dev/cu.usbserial-210'  # Arduino 的序列埠
+SERIAL_PORT = '/dev/cu.usbserial-110'  # Arduino 的序列埠
 BAUD_RATE = 9600
 MAIN_BACKEND_URL = "http://localhost:8000/api/device/signal"
 GATEWAY_HOST = "0.0.0.0"
