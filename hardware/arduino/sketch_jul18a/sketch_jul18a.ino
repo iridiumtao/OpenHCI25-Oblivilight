@@ -36,6 +36,7 @@ unsigned long lastDebounceTime = 0;
 
 
 
+int flag = 0;
 
 // ========= function ========= //
 
@@ -54,9 +55,11 @@ void newMotoSpin() {
   //   stepper.move(4096);    //正轉一圈
   //   //stepper.move(-4096);  //負數就是反轉，反轉一圈
   // }
-  motor.step(STEPS_PER_REV);
-  motor.step(STEPS_PER_REV);
-  motor.step(STEPS_PER_REV/2);
+  motor.step(-STEPS_PER_REV*2);
+  delay(5000);
+  motor.step(STEPS_PER_REV*2);
+  // motor.step(-STEPS_PER_REV);
+  // motor.step(STEPS_PER_REV);
   // delay(100);
 }
 
@@ -127,9 +130,11 @@ void setup() {
 
 
   motor.setSpeed(12);
+  // newMotoSpin();
 }
 
 void loop() {
+
 
   unsigned long now = millis();
 
@@ -164,7 +169,6 @@ void loop() {
 
       // 比對指令
       if (cmd.equals("PRINT_ON")) {
-        // motoSpin();
         newMotoSpin();
       }
   }
