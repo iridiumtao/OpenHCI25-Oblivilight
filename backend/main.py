@@ -130,7 +130,7 @@ async def websocket_endpoint(websocket: WebSocket):
           }
         }
         ```
-        - `emotion_label` can be one of: `"happy"`, `"sad"`, `"angry"`, `"surprised"`, `"neutral"`.
+        - `emotion_label` can be one of: <happy|sad|warm|optimistic|anxious|peaceful|depressed|lonely|angry|neutral>.
 
     2.  **Set System Mode:**
         ```json
@@ -141,7 +141,7 @@ async def websocket_endpoint(websocket: WebSocket):
           }
         }
         ```
-        - `mode_name` can be one of: `"SLEEP"`, `"IDLE"`.
+        - `mode_name` can be one of: `"SLEEP"`, `"IDLE"`, `"FORGET"`.
 
     The client does not need to send any messages to the server; it only needs to
     keep the connection alive to receive commands.
