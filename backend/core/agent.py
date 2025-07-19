@@ -144,7 +144,7 @@ class Agent:
             await self.light_control_tool.set_light_effect("neutral") # Or a specific wake-up light
         elif signal == "SLEEP_TRIGGER":
             await self.process_daily_summary()
-        elif signal in ["FORGET_8S", "FORGET_30S"]:
+        elif signal in ["FORGET", "FORGET_10S", "FORGET_8S", "FORGET_30S"]:
             await self.process_forget_memory(signal)
         else:
             logger.warning(f"Unknown signal received: {signal}")
@@ -158,7 +158,7 @@ class Agent:
         # Assuming an average speaking rate of ~3 Chinese characters per second for estimation.
         # FORGET_8S: 10s * 3 chars/s ≈ 30 chars
         # FORGET_30S: 30s * 3 chars/s = 60 chars
-        chars_to_forget = 60 if signal == "FORGET_30S" else 30
+        chars_to_forget = 90 if signal == "FORGET_30S" else 30
 
         if not self.system_state.conversation_history:
             logger.info("Conversation history is empty. Nothing to forget.")
@@ -167,7 +167,7 @@ class Agent:
 
         full_text = "".join(self.system_state.conversation_history)
 
-        logger.info(f"Full conversation text (char count: {len(full_text)}): {full_text}")
+        logger.debug(f"Full conversation text (char count: {len(full_text)}): {full_text}")
 
         remaining_text = ""
         if len(full_text) > chars_to_forget:
@@ -183,7 +183,7 @@ class Agent:
         if len(remaining_text) > 90:
             remaining_text = remaining_text[:90]
 
-        logger.info(f"Remaining conversation after forgetting: {remaining_text}")
+        logger.debug(f"Remaining conversation after forgetting: {remaining_text}")
 
         # Always generate confirmation from the LLM, even if the remaining conversation is empty.
         # The prompt is designed to handle this gracefully.
