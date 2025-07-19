@@ -239,7 +239,7 @@ class SystemState:
 
 #### **7.9 main.py**
 *   **功能**: FastAPI 應用主體，主要作為 Web 層，負責處理 HTTP 請求與 WebSocket 連線。
-*   **啟動程序**: 在 `startup` 事件中，初始化 `agent`、啟動 `audio_service` 的監聽執行緒，並最重要地，啟動 `agent.run_real_time_emotion_analysis()` 作為背景任務。
+*   **啟動程序**: 使用 `lifespan` 管理器處理應用程式的生命週期。在啟動時，它會初始化 `agent`、啟動 `audio_service` 的監聽執行緒，並啟動 `agent.run_real_time_emotion_analysis()` 作為背景任務。在關閉時，它會優雅地取消背景任務。
 *   **API 路由**: 定義所有 `/api/...` 與 `/ws/...` 端點，並將需要複雜處理的請求（如 `/api/device/signal`）委派給 `agent` 的相應方法。
 *   它自身 **不** 包含核心業務邏輯的實作。
 

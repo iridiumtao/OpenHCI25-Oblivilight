@@ -1,7 +1,8 @@
 import asyncio
 import logging
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
@@ -17,12 +18,52 @@ from backend.core.tools import (
 )
 from backend.services.audio_service import start_mic_thread
 
+# --- Lifespan Management ---
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """
+    Handles application startup and shutdown events.
+    """
+    # --- Startup Logic ---
+    logger.info("Application startup: Initializing resources...")
+    
+    # Initialize chains and other blocking resources
+    get_chains()
+    
+    # Initialize the agent with necessary tools
+    agent.initialize(light_control_tool)
+    
+    # Start the microphone listener thread
+    start_mic_thread()
+    
+    # Start the agent's main processing loop as a background task
+    # This task will run for the entire lifespan of the application
+    agent_task = asyncio.create_task(agent.run_real_time_emotion_analysis())
+    
+    # Set initial state to IDLE
+    await light_control_tool.set_light_effect("IDLE", is_mode=True)
+    
+    logger.info("Application is ready and running.")
+    
+    yield
+    
+    # --- Shutdown Logic ---
+    # This block will be executed when the application shuts down.
+    logger.info("Application shutdown: Cleaning up resources...")
+    agent_task.cancel()
+    try:
+        await agent_task
+    except asyncio.CancelledError:
+        logger.info("Agent's processing loop successfully cancelled.")
+    logger.info("Application has been shut down gracefully.")
+
+
 # --- App Initialization ---
 load_dotenv()
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Oblivilight Backend")
+app = FastAPI(title="Oblivilight Backend", lifespan=lifespan)
 
 # Mount static files for videos
 app.mount("/static", StaticFiles(directory="backend/static"), name="static")
@@ -294,27 +335,6 @@ async def inject_context(payload: InjectContext):
     
     return {"status": "success", "message": "Context injected."}
 
-
-# --- Background Tasks & Core Logic ---
-
-@app.on_event("startup")
-async def startup_event():
-    # Initialize chains and other resources
-    get_chains()
-    logger.info("Application startup: Initialized LangChain chains.")
-    
-    # Initialize the agent with necessary tools
-    agent.initialize(light_control_tool)
-    
-    # Start the microphone listener thread
-    start_mic_thread()
-    
-    # Start the agent's main processing loop as a background task
-    asyncio.create_task(agent.run_real_time_emotion_analysis())
-    
-    # Set initial state
-    await light_control_tool.set_light_effect("IDLE", is_mode=True)
-    logger.info("Application ready. Set initial state to IDLE.")
 
 if __name__ == "__main__":
     import uvicorn
