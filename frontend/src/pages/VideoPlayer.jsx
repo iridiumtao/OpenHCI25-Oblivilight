@@ -44,7 +44,7 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
       nextIndexFromPropRef.current = index;
       setNextScheduledIndex(index);
     }
-    console.log("🎯 Next scheduled index:", nextScheduledIndex);
+    console.log(`Next scheduled index: ${nextScheduledIndex}, index: ${index}`);
   }, [index]);
 
   useEffect(() => {
