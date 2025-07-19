@@ -177,10 +177,10 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
 
     if (isSecondActive) {
       setVideoA(nextSrc);
-      console.log("切換到 Video A:", nextSrc, targetIndex + 1);
+      console.log("切換到 Video A:", nextSrc, targetIndex);
     } else {
       setVideoB(nextSrc);
-      console.log("切換到 Video B:", nextSrc, targetIndex + 1);
+      console.log("切換到 Video B:", nextSrc, targetIndex);
     }
 
     setIsTransitioning(true);
@@ -280,7 +280,7 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
       )}
 
       <div className="absolute bottom-4 right-4 text-white text-sm bg-black/60 px-2 py-1 rounded z-10">
-        Now playing: Video {currentIndex + 1} / {videos.length}
+        Now playing: Video {currentIndex} / {videos.length}
         {showHandWavingOverlay && (
           <div className="mt-1 text-xs text-yellow-300">Hand Waving Mode</div>
         )}
