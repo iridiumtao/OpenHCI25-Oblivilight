@@ -1,4 +1,4 @@
-#include <Servo.h> 
+// #include <Servo.h> 
 // #include <Unistep2.h>
 #include <Stepper.h>
 #include <ArduinoJson.h> 
@@ -14,12 +14,10 @@ const int LIGHT_PIN = A0;
 const int TOUCH_PIN = 2;
 
 const float SOUND_SPEED = 0.0343;  // cm/μs
-
 const int STEPS_PER_REV = 2048;
-// 一定要用 pin1, pin3, pin2, pin4 的順序
 Stepper motor(STEPS_PER_REV, 4, 6, 5, 7);
 
-Servo myservo;  // 建立 SERVO 物件
+// Servo myservo;  // 建立 SERVO 物件
 
 // 門檻設定
 const float DISTANCE_THRESHOLD = 40;
@@ -29,6 +27,19 @@ const unsigned long SAMPLE_INTERVAL = 20;
 int waveState = 0;             // 0=等待「遠」、1=等待「近」、2=等待再「遠」
 unsigned long stateTime = 0;   // 記錄每段開始時間
 unsigned long lastSample = 0;  // 上次取樣時間
+
+// DEBOUNCE SETTING // 
+
+const unsigned long TOUCH_DEBOUNCE = 150;   // 依實際情況調，大約 100~300 ms
+const unsigned long QR_DEBOUNCE    = 200;
+
+bool touchStableState   = false;            // 目前「確認」狀態
+bool touchLastReading   = false;            // 上一次 raw 讀值
+unsigned long touchLastChange = 0;
+
+bool qrStableState      = false;
+bool qrLastReading      = false;
+unsigned long qrLastChange = 0;
 
 //// Light Setting ////
 const int threshold = 860; // 根據實際環境調整
@@ -115,6 +126,22 @@ void resetWave() {
   stateTime = 0;
 }
 
+bool debounceDigital(bool raw, bool &lastReading,
+                     bool &stableState, unsigned long &lastChange,
+                     unsigned long interval)
+{
+  unsigned long now = millis();
+  if (raw != lastReading) {
+    lastChange = now;           // 發生跳動，重新計時
+    lastReading = raw;
+  }
+  if (now - lastChange > interval && raw != stableState) {
+    stableState = raw;          // 穩定超過 interval，才算真正改變
+    return true;                // 回傳「狀態剛改變」
+  }
+  return false;                 // 沒有改變
+}
+
 
 // ========================= Main ==================== //
 
@@ -145,9 +172,19 @@ void loop() {
 
   // ============ Turn on the Light ============ //
 
-  int touchState = digitalRead(TOUCH_PIN);
-  if( touchState == HIGH){
-    Serial.println("WAKEUP_SIGNAL");
+  // int touchState = digitalRead(TOUCH_PIN);
+  // if( touchState == HIGH){
+  //   Serial.println("WAKEUP_SIGNAL");
+  // }
+
+
+   bool touchRaw = digitalRead(TOUCH_PIN);
+  if (debounceDigital(touchRaw,
+                      touchLastReading, touchStableState,
+                      touchLastChange, TOUCH_DEBOUNCE)) {
+    if (touchStableState) {           // 只有由 LOW→HIGH 才送訊號
+      Serial.println("WAKEUP_SIGNAL");
+    }
   }
 
   // ============ ✅ Waving to Light ============ //
@@ -163,7 +200,7 @@ void loop() {
     }
   }
 
-  // ============ ❓ Paper Printing (Spinning) Function ============ //
+  // ============ ✅ Paper Printing (Spinning) Function ============ //
     // if (Serial.available() > 0) {
     //   // Serial.println("Serial Good!");
       
@@ -188,28 +225,40 @@ void loop() {
 
   // ============ ✅ Scanning the QR code ============ //
 
-  int lightValue = analogRead(LIGHT_PIN);
-  bool reading = lightValue > threshold;
-
-  if (reading != lastState) {
-    // 狀態改變，重設計時器
-    lastDebounceTime = millis();
-  }
-
-  if ((millis() - lastDebounceTime) > debounceDelay) {
-    // 狀態穩定超過 debounceDelay，才認定為真正改變
-    if (reading != currentState) {
-      currentState = reading;
-      if (currentState) {
-        Serial.println("REWIND_SIGNAL");
-      } 
-      // else {
-      //   Serial.println("暗");
-      // }
+   int lightValue = analogRead(LIGHT_PIN);
+  bool qrRaw = lightValue > threshold;
+  if (debounceDigital(qrRaw,
+                      qrLastReading, qrStableState,
+                      qrLastChange, QR_DEBOUNCE)) {
+    if (qrStableState) {
+      Serial.println("REWIND_SIGNAL");
     }
   }
 
-  lastState = reading;
+  // int lightValue = analogRead(LIGHT_PIN);
+  // bool reading = lightValue > threshold;
+
+  // if (reading != lastState) {
+  //   // 狀態改變，重設計時器
+  //   lastDebounceTime = millis();
+  // }
+
+  // if ((millis() - lastDebounceTime) > debounceDelay) {
+  //   // 狀態穩定超過 debounceDelay，才認定為真正改變
+  //   if (reading != currentState) {
+  //     currentState = reading;
+  //     if (currentState) {
+  //       Serial.println("REWIND_SIGNAL");
+  //     } 
+  //     // else {
+  //     //   Serial.println("暗");
+  //     // }
+  //   }
+  // }
+
+  // lastState = reading;
+
+
   delay(10); // 100ms 迴圈
   
 }
