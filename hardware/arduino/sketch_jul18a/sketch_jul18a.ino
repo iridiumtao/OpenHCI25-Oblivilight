@@ -62,16 +62,18 @@ const unsigned long QR_STARTUP_BLOCK = 5000;   // 開機後 5 s 內不觸發
 
 
 void newMotoSpin() {
-  // stepper.run();
 
-  // if ( stepper.stepsToGo() == 0 ){ // 如果stepsToGo=0，表示步進馬達已轉完應走的step了
-  //   delay(500);
-  //   stepper.move(4096);    //正轉一圈
-  //   //stepper.move(-4096);  //負數就是反轉，反轉一圈
-  // }
-  motor.step(-STEPS_PER_REV * 2);
-  delay(5000);
-  motor.step(STEPS_PER_REV * 2);
+  // motor.step(STEPS_PER_REV * 2.05);
+  // delay(3000);
+  // motor.step(-STEPS_PER_REV * 2);
+
+
+  motor.step(STEPS_PER_REV * 1.9);
+  delay(3000);
+  motor.step(-STEPS_PER_REV * 1.85);
+  // motor.step(-STEPS_PER_REV * 0.4);
+
+
   // motor.step(-STEPS_PER_REV);
   // motor.step(STEPS_PER_REV);
   // delay(100);
@@ -157,10 +159,13 @@ bool debounceDigital(bool raw, bool &lastReading,
   return false;  // 沒有改變
 }
 
+int flag = 0;
 
 // ========================= Main ==================== //
 
 void setup() {
+
+  delay(2000);
 
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
@@ -182,6 +187,13 @@ void loop() {
 
 
   unsigned long now = millis();
+
+  // if(flag == 0){
+  //   newMotoSpin();
+  //   flag = 1;
+  // }
+
+  // newMotoSpin();
 
 
 
