@@ -23,6 +23,8 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showHandWavingOverlay, setShowHandWavingOverlay] = useState(false);
 
+  const [nextScheduledIndex, setNextScheduledIndex] = useState(0);
+
   const [videoA, setVideoA] = useState(videos[0]);
   const [videoB, setVideoB] = useState("");
 
@@ -37,8 +39,22 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
   useEffect(() => {
     if (typeof index === "number" && index >= 0 && index < videos.length) {
       nextIndexFromPropRef.current = index;
+      setNextScheduledIndex(index);
     }
   }, [index]);
+
+  useEffect(() => {
+    if (!isTransitioning) {
+      const shouldResetToZero = !(
+        currentIndex === 0 &&
+        (nextIndexFromPropRef.current === 0 ||
+          nextIndexFromPropRef.current === null)
+      );
+      if (shouldResetToZero) {
+        setNextScheduledIndex(0);
+      }
+    }
+  }, [isTransitioning, currentIndex]);
 
   // 處理 isHandWaving 變化
   useEffect(() => {
@@ -117,22 +133,35 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
       }
     }, interval);
   };
-
   const getNextIndex = () => {
-    const candidate = nextIndexFromPropRef.current;
+    // 优先使用最新的 prop index（如果有的话）
+    const propIndex = nextIndexFromPropRef.current;
+    const isValidPropIndex =
+      typeof propIndex === "number" &&
+      propIndex >= 0 &&
+      propIndex < videos.length &&
+      propIndex !== currentIndex;
 
-    const isValid =
-      typeof candidate === "number" &&
-      candidate >= 0 &&
-      candidate < videos.length;
-
-    if (isValid && candidate !== currentIndex) {
-      return candidate;
+    if (isValidPropIndex) {
+      console.log(`使用 prop index: ${propIndex}`);
+      return propIndex;
     }
 
-    // fallback 條件
-    if (currentIndex === 0) return 0; // 繼續播 video[0]
-    return 0; // fallback to video[0]
+    // 如果没有有效的 prop index，使用计划中的下一个索引
+    if (nextScheduledIndex !== currentIndex) {
+      console.log(`使用计划索引: ${nextScheduledIndex}`);
+      return nextScheduledIndex;
+    }
+
+    // 特殊情况：如果当前是 video[0] 且 prop 也是 0，则不切换
+    if (currentIndex === 0 && (propIndex === 0 || propIndex === null)) {
+      console.log("当前已是 video[0] 且 prop 为 0，不切换");
+      return currentIndex; // 返回当前索引，不切换
+    }
+
+    // 默认 fallback 到 video[0]
+    console.log("fallback 到 video[0]");
+    return 0;
   };
 
   const startTransition = (targetIndex) => {
@@ -168,6 +197,14 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
       setCurrentIndex(targetIndex);
       setIsSecondActive(!isSecondActive);
       setIsTransitioning(false);
+
+      if (nextIndexFromPropRef.current === targetIndex) {
+        nextIndexFromPropRef.current = null; // 清除已使用的 prop index
+
+        if (targetIndex !== 0) {
+          setNextScheduledIndex(0);
+        }
+      }
     }, transitionDuration);
   };
 
