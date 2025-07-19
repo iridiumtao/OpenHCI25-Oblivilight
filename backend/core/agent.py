@@ -1,41 +1,23 @@
 import asyncio
 from typing import Optional, List
 from datetime import datetime
-
+import numpy as np
+import queue
 
 from backend.core.chains import get_chains
+from backend.core.state import system_state
 from backend.core.tools import create_memory, generate_card_image, LightControlTool
 # Temporarily switching to Yating TTS for testing
-from backend.services.tts_service import text_to_speech_and_play_yating as text_to_speech_and_play
+from backend.services.tts_service import (
+    text_to_speech_and_play_yating as text_to_speech_and_play,
+)
+from backend.services.stt_service import transcribe_realtime
+from backend.services.audio_service import audio_q
 import logging
 import os
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
-
-class SystemState:
-    """
-    Manages the global state of the backend application.
-    This class is intended to be a singleton.
-    """
-    def __init__(self):
-        self.is_listening: bool = False
-        self.is_processing: bool = False  # Lock for tasks like forgetting or summarizing
-        self.injected_context: Optional[str] = None
-        self.conversation_history: List[str] = []
-        self.full_audio_path: Optional[str] = None
-
-    def reset_session(self):
-        """Resets the state for a new user session."""
-        self.is_listening = False
-        self.is_processing = False
-        self.injected_context = None
-        self.conversation_history = []
-        self.full_audio_path = None
-        print("System state has been reset for a new session.")
-
-# Singleton instance
-system_state = SystemState()
 
 # --- Main Agent Class ---
 
@@ -49,6 +31,102 @@ class Agent:
         """Initializes the agent with tools that need external context."""
         self.light_control_tool = light_control_tool
         logger.info("Agent initialized with all tools.")
+
+    async def run_real_time_emotion_analysis(self):
+        """
+        The main background task for the agent. It continuously processes audio 
+        for emotion analysis when the system is in a listening state.
+        """
+        buffer = np.zeros((0, 1), dtype=np.float32)
+        # Configuration based on whisper_realtime.py
+        WINDOW_SEC = 10
+        STEP_SEC = 9
+        TRIM_OLD_AUDIO = True
+        MAX_BUFFER_SEC = 12
+        SAMPLE_RATE = 16_000
+
+        WINDOW_SAMPLES = int(SAMPLE_RATE * WINDOW_SEC)
+        STEP_SAMPLES = int(SAMPLE_RATE * STEP_SEC)
+        MAX_BUFFER_SAMPLES = int(SAMPLE_RATE * MAX_BUFFER_SEC)
+
+        frames_since_last_transcription = 0
+        loop = asyncio.get_running_loop()
+        was_listening_before = False
+
+        logger.info("Starting agent's real-time processing loop...")
+        while True:
+            # State change check: from not listening to listening
+            if self.system_state.is_listening and not was_listening_before:
+                logger.info("Wake up detected in agent loop. Clearing buffers.")
+                # Clear the internal numpy buffer
+                buffer = np.zeros((0, 1), dtype=np.float32)
+                frames_since_last_transcription = 0
+                # Clear the shared audio queue to discard any stale audio
+                while not audio_q.empty():
+                    try:
+                        audio_q.get_nowait()
+                    except queue.Empty:
+                        break
+
+            was_listening_before = self.system_state.is_listening
+
+            if not self.system_state.is_listening or self.system_state.is_processing:
+                await asyncio.sleep(0.5)  # Wait if not listening or if busy
+                continue
+
+            try:
+                # Get audio frame from the queue
+                frame = await loop.run_in_executor(None, audio_q.get, 0.1)
+                buffer = np.vstack((buffer, frame))
+                frames_since_last_transcription += frame.shape[0]
+
+                # Trim buffer to save memory
+                if TRIM_OLD_AUDIO and len(buffer) > MAX_BUFFER_SAMPLES:
+                    buffer = buffer[-MAX_BUFFER_SAMPLES:]
+                elif not TRIM_OLD_AUDIO and len(buffer) > WINDOW_SAMPLES * 2:
+                    buffer = buffer[-WINDOW_SAMPLES:]
+
+                # Check if we have enough data to transcribe
+                if (
+                    len(buffer) < WINDOW_SAMPLES
+                    or frames_since_last_transcription < STEP_SAMPLES
+                ):
+                    continue
+
+                frames_since_last_transcription = 0
+                audio_chunk = buffer[-WINDOW_SAMPLES:].flatten()
+
+                # Transcribe in executor to not block the event loop
+                text = await loop.run_in_executor(None, transcribe_realtime, audio_chunk)
+
+                if not text:
+                    continue
+
+                logger.info(f"[Transcript] {text}")
+                self.system_state.conversation_history.append(text)
+
+                # Analyze emotion
+                emotion_result = await self.chains["emotion_analysis"].ainvoke(
+                    {"text": text}
+                )
+                emotion = emotion_result.get("text_emotion", "neutral")
+                logger.info(f"[Emotion] {emotion}")
+
+                # Check for sleep trigger
+                if emotion == "sleep":
+                    logger.info("Sleep intention detected. Triggering daily summary.")
+                    # process_daily_summary handles its own light effect ("SLEEP")
+                    await self.process_daily_summary()
+                else:
+                    # Send light effect to projector for other emotions
+                    await self.light_control_tool.set_light_effect(emotion)
+
+            except queue.Empty:
+                await asyncio.sleep(0.1)
+                continue
+            except Exception as e:
+                logger.error(f"Error in agent's processing loop: {e}", exc_info=True)
+                await asyncio.sleep(1)
 
     async def handle_signal(self, signal: str):
         """Main entry point for handling signals from the device."""

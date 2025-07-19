@@ -7,7 +7,7 @@ import logging
 import numpy as np
 import sounddevice as sd
 
-from backend.core.agent import system_state
+from backend.core.state import system_state
 
 # --- Configuration ---
 SAMPLE_RATE = 16_000

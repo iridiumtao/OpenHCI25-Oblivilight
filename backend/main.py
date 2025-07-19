@@ -11,16 +11,11 @@ from dotenv import load_dotenv
 from backend.core.agent import agent
 from backend.core.chains import get_chains
 from backend.core.tools import (
-    create_memory,
     read_memory,
     update_memory,
-    generate_card_image,
     LightControlTool,
 )
-from backend.services.stt_service import transcribe_realtime
-from backend.services.audio_service import audio_q, start_mic_thread
-import numpy as np
-import queue
+from backend.services.audio_service import start_mic_thread
 
 # --- App Initialization ---
 load_dotenv()
@@ -302,97 +297,6 @@ async def inject_context(payload: InjectContext):
 
 # --- Background Tasks & Core Logic ---
 
-async def real_time_emotion_analysis():
-    """
-    A background task that continuously processes audio for emotion analysis.
-    """
-    buffer = np.zeros((0, 1), dtype=np.float32)
-    # Configuration based on whisper_realtime.py
-    WINDOW_SEC = 10
-    STEP_SEC = 9
-    TRIM_OLD_AUDIO = True
-    MAX_BUFFER_SEC = 12
-    SAMPLE_RATE = 16_000
-    
-    WINDOW_SAMPLES = int(SAMPLE_RATE * WINDOW_SEC)
-    STEP_SAMPLES = int(SAMPLE_RATE * STEP_SEC)
-    MAX_BUFFER_SAMPLES = int(SAMPLE_RATE * MAX_BUFFER_SEC)
-    
-    frames_since_last_transcription = 0
-    loop = asyncio.get_running_loop()
-    was_listening_before = False
-    
-    logger.info("Starting real-time emotion analysis loop...")
-    while True:
-        # State change check: from not listening to listening
-        if agent.system_state.is_listening and not was_listening_before:
-            logger.info("Wake up detected in analysis loop. Clearing buffers.")
-            # Clear the internal numpy buffer
-            buffer = np.zeros((0, 1), dtype=np.float32)
-            frames_since_last_transcription = 0
-            # Clear the shared audio queue to discard any stale audio
-            while not audio_q.empty():
-                try:
-                    audio_q.get_nowait()
-                except queue.Empty:
-                    break
-        
-        was_listening_before = agent.system_state.is_listening
-
-        if not agent.system_state.is_listening or agent.system_state.is_processing:
-            await asyncio.sleep(0.5) # Wait if not listening or if busy
-            continue
-
-        try:
-            # Get audio frame from the queue
-            frame = await loop.run_in_executor(None, audio_q.get, 0.1)
-            buffer = np.vstack((buffer, frame))
-            frames_since_last_transcription += frame.shape[0]
-
-            # Trim buffer to save memory
-            if TRIM_OLD_AUDIO and len(buffer) > MAX_BUFFER_SAMPLES:
-                buffer = buffer[-MAX_BUFFER_SAMPLES:]
-            elif not TRIM_OLD_AUDIO and len(buffer) > WINDOW_SAMPLES * 2:
-                buffer = buffer[-WINDOW_SAMPLES:]
-
-            # Check if we have enough data to transcribe
-            if len(buffer) < WINDOW_SAMPLES or frames_since_last_transcription < STEP_SAMPLES:
-                continue
-
-            frames_since_last_transcription = 0
-            audio_chunk = buffer[-WINDOW_SAMPLES:].flatten()
-
-            # Transcribe in executor to not block the event loop
-            text = await loop.run_in_executor(None, transcribe_realtime, audio_chunk)
-            
-            if not text:
-                continue
-            
-            logger.info(f"[Transcript] {text}")
-            agent.system_state.conversation_history.append(text)
-
-            # Analyze emotion
-            emotion_result = await agent.chains['emotion_analysis'].ainvoke({"text": text})
-            emotion = emotion_result.get("text_emotion", "neutral")
-            logger.info(f"[Emotion] {emotion}")
-
-            # Check for sleep trigger
-            if emotion == 'sleep':
-                logger.info("Sleep intention detected. Triggering daily summary.")
-                # process_daily_summary handles its own light effect ("SLEEP")
-                await agent.process_daily_summary()
-            else:
-                # Send light effect to projector for other emotions
-                await light_control_tool.set_light_effect(emotion)
-
-        except queue.Empty:
-            await asyncio.sleep(0.1)
-            continue
-        except Exception as e:
-            logger.error(f"Error in emotion analysis loop: {e}", exc_info=True)
-            await asyncio.sleep(1)
-
-
 @app.on_event("startup")
 async def startup_event():
     # Initialize chains and other resources
@@ -405,8 +309,8 @@ async def startup_event():
     # Start the microphone listener thread
     start_mic_thread()
     
-    # Start the background task for real-time analysis
-    asyncio.create_task(real_time_emotion_analysis())
+    # Start the agent's main processing loop as a background task
+    asyncio.create_task(agent.run_real_time_emotion_analysis())
     
     # Set initial state
     await light_control_tool.set_light_effect("IDLE", is_mode=True)
