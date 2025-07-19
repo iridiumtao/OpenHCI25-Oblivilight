@@ -116,7 +116,7 @@ python hardware/hardware_gateway.py
     {"type": "SET_EMOTION", "payload": {"emotion": "<emotion_type>"}}
     ```
     -   **`emotion_type`** (string): 可用的情緒類型包含：
-        -   `happy`, `sad`, `warm`, `optimistic`, `anxious`, `peaceful`, `depressed`, `lonely`, `angry`, `neutral`, `sleep`
+        -   `happy`, `sad`, `warm`, `optimistic`, `anxious`, `peaceful`, `depressed`, `lonely`, `angry`, `neutral`
 
     #### 2. 設定特定模式 (`SET_MODE`)
     後端會根據系統狀態（如閒置、遺忘、睡眠）發送此訊息。
