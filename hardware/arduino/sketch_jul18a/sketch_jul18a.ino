@@ -1,6 +1,9 @@
 #include <Servo.h> 
 // #include <Unistep2.h>
 #include <Stepper.h>
+#include <ArduinoJson.h> 
+
+StaticJsonDocument<128> doc;
 
 // Unistep2 stepper(4, 5, 6, 7, 4096, 1000);// IN1, IN2, IN3, IN4, 總step數, 每步的延遲(in micros)
 
@@ -161,16 +164,26 @@ void loop() {
   }
 
   // ============ ❓ Paper Printing (Spinning) Function ============ //
-    if (Serial.available() > 0) {
-      // Serial.println("Serial Good!");
+    // if (Serial.available() > 0) {
+    //   // Serial.println("Serial Good!");
       
-      String cmd = Serial.readStringUntil('\n');
-      cmd.trim();  // 去掉潛在的 \r 或空白
+    //   String cmd = Serial.readStringUntil('\n');
+    //   cmd.trim();  // 去掉潛在的 \r 或空白
 
-      // 比對指令
-      if (cmd.equals("PRINT_CARD")) {
+    //   // 比對指令
+    //   if (cmd.equals("PRINT_CARD")) {
+    //     newMotoSpin();
+    //   }
+    // }
+
+  if (Serial.available()) {
+    String line = Serial.readStringUntil('\n');
+    if (!deserializeJson(doc, line)) {
+      const char* cmd = doc["command"];
+      if (strcmp(cmd, "PRINT_CARD") == 0){
         newMotoSpin();
       }
+    }
   }
 
   // ============ ✅ Scanning the QR code ============ //
