@@ -100,14 +100,19 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
   // 監聽 showHandWavingOverlay 變化，遮罩消失後重新啟動播放計時
   useEffect(() => {
     if (!showHandWavingOverlay && !isHandWaving) {
-      console.log("🫷 Hand waving ended, restarting playback cycle");
-      startPlaybackCycle();
+      console.log("🫷 Hand waving ended, transitioning to 0, neutral video");
+
+      if (currentIndex !== 0) {
+        startTransition(0); // 確保在遮罩結束後切換到 neutral video
+      } else {
+        startPlaybackCycle();
+      }
     }
   }, [showHandWavingOverlay, isHandWaving]);
 
   // 啟動每 3 秒的播放切換邏輯（只有在沒有遮罩時才啟動）
   useEffect(() => {
-    if (!showHandWavingOverlay && !isHandWaving) {
+    if (!showHandWavingOverlay && !isHandWaving && !isTransitioning) {
       startPlaybackCycle();
     }
     return () => {
