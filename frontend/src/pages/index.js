@@ -62,6 +62,7 @@ export default function Home() {
       setIsHandWaving(true);
     }
     setIsSleeping(mode === "SLEEP");
+    setIsRewindActivated(mode === "REWIND");
   }, [mode]);
 
   // --- Keyboard simulation ---

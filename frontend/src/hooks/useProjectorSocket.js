@@ -25,7 +25,7 @@ export function useProjectorSocket(wsUrl) {
   const errorLoggedRef = useRef(false);
 
   const [emotionIndex, setEmotionIndex] = useState(null);
-  const [mode, setMode] = useState("IDLE"); // "IDLE" | "SLEEP" | "FORGET"
+  const [mode, setMode] = useState("IDLE"); // "IDLE" | "SLEEP" | "FORGET" | "REWIND"
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
