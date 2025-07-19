@@ -17,8 +17,6 @@ const float SOUND_SPEED = 0.0343;  // cm/μs
 const int STEPS_PER_REV = 2048;
 Stepper motor(STEPS_PER_REV, 4, 6, 5, 7);
 
-// Servo myservo;  // 建立 SERVO 物件
-
 // 門檻設定
 const float DISTANCE_THRESHOLD = 40;
 const unsigned long MAX_INTERVAL = 1000;
@@ -27,6 +25,9 @@ const unsigned long SAMPLE_INTERVAL = 20;
 int waveState = 0;             // 0=等待「遠」、1=等待「近」、2=等待再「遠」
 unsigned long stateTime = 0;   // 記錄每段開始時間
 unsigned long lastSample = 0;  // 上次取樣時間
+
+const unsigned long WAVE_COOLDOWN = 3000;   // 3 秒只算一次揮手
+unsigned long lastWaveMillis = 0;           // 上次觸發時間
 
 // DEBOUNCE SETTING //
 
@@ -41,6 +42,8 @@ bool qrStableState = false;
 bool qrLastReading = false;
 unsigned long qrLastChange = 0;
 
+bool isAwake = false;     // false = Sleep, true = Wake up
+
 //// Light Setting ////
 const int LIGHT_THRESHOLD = 850;          // 根據實際環境調整
 const unsigned long debounceDelay = 200;  // 去彈跳延遲（毫秒）
@@ -48,11 +51,12 @@ bool lastState = false;
 bool currentState = false;
 unsigned long lastDebounceTime = 0;
 
-
 static bool qrArmed = true;  // 是否允許觸發
 static unsigned long lastQrTime = 0;
 
 const unsigned long QR_STARTUP_BLOCK = 5000;   // 開機後 5 s 內不觸發
+
+
 
 // ========= function ========= //
 
@@ -109,13 +113,27 @@ void detectWave(float d, unsigned long t) {
       break;
     case 2:
       // 「近」→再「遠」
+      // if (t - stateTime > MAX_INTERVAL) {
+      //   resetWave();
+      // } else if (d > DISTANCE_THRESHOLD) {
+      //   Serial.println("FORGET_SIGNAL");
+      //   resetWave();
+      // }
+      // break;
       if (t - stateTime > MAX_INTERVAL) {
-        resetWave();
-      } else if (d > DISTANCE_THRESHOLD) {
-        Serial.println("FORGET_SIGNAL");
-        resetWave();
-      }
-      break;
+          resetWave();
+        } else if (d > DISTANCE_THRESHOLD) {
+          if (t - lastWaveMillis >= WAVE_COOLDOWN) {   // 超過冷卻才觸發
+            Serial.println("FORGET_SIGNAL");
+            lastWaveMillis = t;                        // 更新時間
+          }
+          resetWave();
+        }
+        break;
+
+
+
+
   }
 }
 
@@ -169,20 +187,35 @@ void loop() {
 
   // ============ Turn on the Light ============ //
 
-  // int touchState = digitalRead(TOUCH_PIN);
-  // if( touchState == HIGH){
-  //   Serial.println("WAKEUP_SIGNAL");
+
+
+
+  // bool touchRaw = digitalRead(TOUCH_PIN);
+  // if (debounceDigital(touchRaw,
+  //                     touchLastReading, touchStableState,
+  //                     touchLastChange, TOUCH_DEBOUNCE)) {
+  //   if (touchStableState) {  // 只有由 LOW→HIGH 才送訊號
+  //     Serial.println("WAKEUP_SIGNAL");
+  //   }
   // }
 
 
   bool touchRaw = digitalRead(TOUCH_PIN);
   if (debounceDigital(touchRaw,
                       touchLastReading, touchStableState,
-                      touchLastChange, TOUCH_DEBOUNCE)) {
-    if (touchStableState) {  // 只有由 LOW→HIGH 才送訊號
-      Serial.println("WAKEUP_SIGNAL");
+                      touchLastChange, TOUCH_DEBOUNCE))
+  {
+    if (touchStableState) {            // 只有 LOW→HIGH 觸發
+      if (isAwake) {
+        Serial.println("SLEEP_SIGNAL");
+        isAwake = false;               // 進入 Sleep
+      } else {
+        Serial.println("WAKEUP_SIGNAL");
+        isAwake = true;                // 進入 Wake up
+      }
     }
   }
+
 
   // ============ ✅ Waving to Light ============ //
   if (now - lastSample >= SAMPLE_INTERVAL) {
