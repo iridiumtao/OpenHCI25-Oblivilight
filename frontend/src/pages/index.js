@@ -68,7 +68,6 @@ export default function Home() {
     if (mode === "WAKEUP") {
       setIsSleeping(false);
     }
-
   }, [mode]);
 
   // --- Keyboard simulation ---
@@ -91,6 +90,16 @@ export default function Home() {
       if (key.toLowerCase() === "r") {
         console.log("⏪ Rewind activated by key");
         setIsRewindActivated(true);
+      }
+
+      if (key.toLowerCase() === "s") {
+        console.log("Sleep by key");
+        setIsSleeping(true);
+      }
+
+      if (key.toLowerCase() === "w") {
+        console.log("Wake up by key");
+        setIsSleeping(false);
       }
     };
 
@@ -116,10 +125,11 @@ export default function Home() {
 
       <div
         className={`absolute top-0 left-0 w-full h-full bg-black transition-opacity duration-300 ${
-          showBlackout || isSleeping
-            ? "opacity-100 z-10"
-            : "opacity-0 z-0 pointer-events-none"
+          showBlackout || isSleeping ? "opacity-100 z-10" : "opacity-0 z-0"
         }`}
+        style={{
+          pointerEvents: showBlackout || isSleeping ? "auto" : "none",
+        }}
       />
 
       <div className="absolute top-4 left-4 bg-black/50 text-white px-3 py-1.5 rounded-lg text-sm z-30">
