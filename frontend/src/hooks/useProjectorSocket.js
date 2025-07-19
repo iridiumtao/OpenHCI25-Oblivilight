@@ -22,6 +22,7 @@ const emotionInterval = 10000; // 每 10 秒更新一次 emotion
 export function useProjectorSocket(wsUrl) {
   const wsRef = useRef(null);
   const latestEmotionRef = useRef(null);
+  const errorLoggedRef = useRef(false);
 
   const [emotionIndex, setEmotionIndex] = useState(null);
   const [mode, setMode] = useState("IDLE"); // "IDLE" | "SLEEP" | "FORGET"
@@ -39,6 +40,7 @@ export function useProjectorSocket(wsUrl) {
       wsRef.current.onopen = () => {
         console.log("✅ WebSocket connected");
         setIsConnected(true);
+        errorLoggedRef.current = false; // 連線成功，重設錯誤日誌標記
       };
 
       wsRef.current.onmessage = (event) => {
@@ -62,16 +64,22 @@ export function useProjectorSocket(wsUrl) {
       };
 
       wsRef.current.onclose = () => {
-        console.log("❌ WebSocket disconnected. Retrying in 3 seconds...");
+        if (isConnected) {
+          console.log("❌ WebSocket disconnected. Retrying in 3 seconds...");
+        }
         setIsConnected(false);
-        // 清理 ref，確保下次 connect 能建立新實例
         wsRef.current = null;
-        setTimeout(connect, 3000); // 3 秒後自動重連
+        setTimeout(connect, 3000); // 固定 3 秒後重連
       };
 
       wsRef.current.onerror = (err) => {
-        console.error("WebSocket error:", err);
-        // onclose 會在 error 後被觸發，所以這裡不用特別處理重連
+        if (!errorLoggedRef.current) {
+          // 只在第一次連線失敗時顯示我們自訂的、較詳細的警告
+          console.warn(
+            "WebSocket connection failed. Will retry every 3 seconds. (Browser connection errors are expected)"
+          );
+          errorLoggedRef.current = true;
+        }
         wsRef.current.close();
       };
     };
