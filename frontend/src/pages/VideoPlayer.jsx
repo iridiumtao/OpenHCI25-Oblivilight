@@ -17,11 +17,14 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
   const interval = 10000; // 必須播放滿 10 秒 3 second is for testing
   const transitionDuration = 1500;
   const handWavingDuration = 10000; // 10 秒遮罩持續時間
+  const overlayTransitionDuration = 500; // 遮罩淡入淡出時間
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSecondActive, setIsSecondActive] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showHandWavingOverlay, setShowHandWavingOverlay] = useState(false);
+  const [isHandWavingTransitioning, setIsHandWavingTransitioning] =
+    useState(false);
 
   const [nextScheduledIndex, setNextScheduledIndex] = useState(0);
 
@@ -64,14 +67,13 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
       // 開始手勢遮罩
       setShowHandWavingOverlay(true);
 
-      // 重置當前播放影片的播放時間
-      const currentVideoRef = isSecondActive ? videoBRef : videoARef;
-      if (currentVideoRef.current) {
-        currentVideoRef.current.currentTime = 0;
-        currentVideoRef.current.play().catch(() => {
-          // silent autoplay error
-        });
-      }
+      // mask fading in starts
+      setIsHandWavingTransitioning(true);
+
+      // mask fading in ends
+      setTimeout(() => {
+        setIsHandWavingTransitioning(false);
+      }, overlayTransitionDuration);
 
       // 清除現有的播放計時器
       if (timerRef.current) {
@@ -82,12 +84,17 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
       // 移除遮罩
       handWavingTimerRef.current = setTimeout(() => {
         console.log("🫷 Hand waving timer completed");
-        setShowHandWavingOverlay(false);
-        // 通知父組件將 isHandWaving 設回 false
-        if (onHandWavingChange) {
-          onHandWavingChange(false);
-        }
-      }, handWavingDuration);
+        setIsHandWavingTransitioning(true);
+
+        setTimeout(() => {
+          setShowHandWavingOverlay(false);
+          setIsHandWavingTransitioning(false);
+          // 通知父組件將 isHandWaving 設回 false
+          if (onHandWavingChange) {
+            onHandWavingChange(false);
+          }
+        }, overlayTransitionDuration);
+      }, handWavingDuration - overlayTransitionDuration); // 提早 overlayTransitionDuration 毫秒開始移除遮罩
     }
 
     return () => {
@@ -279,6 +286,8 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
             backdropFilter: "blur(3px)",
             mixBlendMode: "lighten",
             filter: "grayscale(0.3) brightness(1)",
+            opacity: isHandWavingTransitioning ? 0 : 1,
+            transition: `opacity ${overlayTransitionDuration}ms ease-in-out`,
           }}
         />
       )}
