@@ -75,15 +75,6 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
         setIsHandWavingTransitioning(false);
       }, overlayTransitionDuration);
 
-      // 重置當前播放影片的播放時間
-      const currentVideoRef = isSecondActive ? videoBRef : videoARef;
-      if (currentVideoRef.current) {
-        currentVideoRef.current.currentTime = 0;
-        currentVideoRef.current.play().catch(() => {
-          // silent autoplay error
-        });
-      }
-
       // 清除現有的播放計時器
       if (timerRef.current) {
         clearTimeout(timerRef.current);
