@@ -41,8 +41,8 @@ class Agent:
         """
         buffer = np.zeros((0, 1), dtype=np.float32)
         # Configuration based on whisper_realtime.py
-        WINDOW_SEC = 10
-        STEP_SEC = 9
+        WINDOW_SEC = 8
+        STEP_SEC = 3
         TRIM_OLD_AUDIO = True
         MAX_BUFFER_SEC = 12
         SAMPLE_RATE = 16_000
