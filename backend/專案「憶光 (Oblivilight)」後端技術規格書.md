@@ -2,48 +2,56 @@
 
 ## **專案「憶光 (Oblivilight)」後端技術規格書 for AI Agent**
 
-文件版本: 2.1 (Backend Final)  
+文件版本: 2.2 (Hardware Gateway Integration)
 目標: 本文件旨在作為 Gemini 2.5 Pro 等 AI Coding Agent 的輸入，用於生成專案「憶光」的完整後端應用程式。
 
 ### **1.0 專案概述**
 
-本專案為「憶光 (Oblivilight)」，一個 AI 助眠日記燈。後端系統需負責處理即時語音、情緒分析、對話管理、日記存檔，並透過 API 與硬體裝置和使用者網頁互動。其核心設計理念是「遺忘」與「使用者主導的回憶」，AI 本身不具備主動查詢過往記憶的能力。
+本專案為「憶光 (Oblivilight)」，一個 AI 助眠日記燈。系統由兩部分組成：
+1.  **核心後端 (Core Backend)**: 負責處理即時語音、情緒分析、對話管理、日記存檔，並透過 API 與使用者網頁互動。
+2.  **硬體閘道器 (Hardware Gateway)**: 一個獨立的服務，作為核心後端與 Arduino 硬體之間的橋樑，負責序列埠通訊。
+
+其核心設計理念是「遺忘」與「使用者主導的回憶」，AI 本身不具備主動查詢過往記憶的能力。
 
 ### **2.0 核心技術堆疊**
 
-* **語言**: Python 3.10+  
-* **Web 框架**: FastAPI  
-* **AI 應用框架**: LangChain  
-* **非同步網路**: uvicorn, websockets  
-* **語音轉文字 (STT)**: openai-whisper (本地端), openai (雲端 API)  
-* **文字轉語音 (TTS)**: Yating (透過 REST API), playsound
-* **音訊處理**: sounddevice, scipy  
-* **圖片/卡片處理**: Pillow  
-* **QR Code**: qrcode  
-* **環境變數管理**: python-dotenv
+*   **語言**: Python 3.10+
+*   **Web 框架**: FastAPI
+*   **AI 應用框架**: LangChain
+*   **非同步網路**: uvicorn, websockets
+*   **序列埠通訊**: pyserial
+*   **語音轉文字 (STT)**: openai-whisper (本地端), openai (雲端 API)
+*   **文字轉語音 (TTS)**: Yating (透過 REST API), playsound
+*   **音訊處理**: sounddevice, scipy
+*   **圖片/卡片處理**: Pillow
+*   **QR Code**: qrcode
+*   **環境變數管理**: python-dotenv
 
 ### **3.0 專案目錄結構**
 
 請依照以下結構生成專案檔案：
 
 ```
-backend/  
-├── main.py             \# FastAPI 應用主體，API 路由與 WebSocket 管理  
-├── core/  
-│   ├── agent.py        \# 核心業務邏輯與狀態管理器  
-│   ├── chains.py       \# 集中管理所有 LangChain Chains  
-│   ├── state.py        \# 定義並導出全局單例狀態 (system_state)
-│   └── tools.py        \# 集中管理所有 LangChain Tools  
-├── services/  
-│   ├── audio_service.py \# 封裝音訊擷取服務
-│   ├── stt_service.py  \# 封裝本地與雲端的 Whisper 呼叫
-│   └── tts_service.py  \# 封裝 TTS 服務呼叫 (例如: Yating)
-├── datastore/          \# (由程式自動建立) 存放日記 JSON 檔案  
-├── static/videos/      \# (手動建立) 存放燈效影片  
-├── config/  
-│   ├── prompts.json  
-│   └── video\_mapping.json  
-└── requirements.txt
+.
+├── backend/  
+│   ├── main.py             # FastAPI 應用主體，API 路由與 WebSocket 管理  
+│   ├── core/  
+│   │   ├── agent.py        # 核心業務邏輯與狀態管理器  
+│   │   ├── chains.py       # 集中管理所有 LangChain Chains  
+│   │   ├── state.py        # 定義並導出全局單例狀態 (system_state)
+│   │   └── tools.py        # 集中管理所有 LangChain Tools  
+│   ├── services/  
+│   │   ├── audio_service.py # 封裝音訊擷取服務
+│   │   ├── stt_service.py  # 封裝本地與雲端的 Whisper 呼叫
+│   │   └── tts_service.py  # 封裝 TTS 服務呼叫
+│   ├── datastore/          # (由程式自動建立) 存放日記 JSON 檔案  
+│   ├── static/videos/      # (手動建立) 存放燈效影片  
+│   ├── config/  
+│   │   ├── prompts.json  
+│   │   └── video_mapping.json  
+│   └── requirements.txt
+└── hardware/
+    └── hardware_gateway.py # 獨立的硬體通訊服務
 ```
 
 ### **4.0 設定檔 (Configuration Files)**
@@ -138,7 +146,9 @@ class SystemState:
     *   使用 `daily_summary_short` prompt 產生 30 字結語。
     *   呼叫 `database_tool` 的 `create_memory` 存檔並取得 uuid。
     *   為 QR Code 產生指向前端應用的 URL (例如 `http://localhost:3000/memory/{uuid}`)。
-    *   呼叫 `printer_tool` 的 `generate_card_image` 生成卡片圖片。
+    *   **呼叫 `CardAndPrinterTool` 的 `generate_and_print_card` 方法，此方法會完成以下兩件事：**
+        *   **生成包含日期、結語和 QR Code 的卡片圖片。**
+        *   **向硬體閘道器 (Hardware Gateway) 發送 HTTP 請求，觸發實體卡片列印。**
     *   呼叫 `system_state.reset_session()` 重設所有狀態，回到 IDLE。
 5.  **注入上下文 (RAG) 流程**:
     *   `main.py` 中的 `POST /api/session/inject-context` 端點接收請求。
@@ -155,8 +165,8 @@ class SystemState:
 #### **6.2 Device-to-Backend Communication**
 
 * **路由**: POST /api/device/signal  
-* **功能**: 接收來自 Arduino 的訊號，觸發後端核心行為。  
-* **請求 Body**: {"signal": "\<signal\_type\>"}，signal\_type 可為 "FORGET\_8S", "FORGET\_30S", "SLEEP\_TRIGGER", "WAKE\_UP"。  
+* **功能**: **接收來自獨立運行的「硬體閘道器」的訊號**，觸發後端核心行為。  
+* **請求 Body**: {"signal": "<signal_type>"}，signal_type 可為 "FORGET_8S", "FORGET_30S", "SLEEP_TRIGGER", "WAKE_UP"。  
 * **成功回應**: 200 OK {"status": "ok", "message": "Signal 'WAKE_UP' received and is being processed."}。
 * **錯誤回應**: 400 Bad Request {"detail": "Invalid signal type."}。
 
@@ -205,20 +215,17 @@ class SystemState:
 
 #### **7.4 core/tools.py \- Database Tool**
 
-* create\_memory(summary\_data): 生成 `uuid.uuid4()`，將 `summary_data` (一個 dict) 寫入 `datastore/{uuid}.json`。  
-* read\_memory(uuid): 讀取並回傳 `datastore/{uuid}.json` 的內容。  
-* update\_memory(uuid, update\_data): 讀取、更新、並寫回 `datastore/{uuid}.json`。
+*   create_memory(summary_data): 生成 `uuid.uuid4()`，將 `summary_data` (一個 dict) 寫入 `datastore/{uuid}.json`。
+*   read_memory(uuid): 讀取並回傳 `datastore/{uuid}.json` 的內容。
+*   update_memory(uuid, update_data): 讀取、更新、並寫回 `datastore/{uuid}.json`。
 
-#### **7.5 core/tools.py \- Printer Tool**
+#### **7.5 core/tools.py \- Card and Printer Tool**
 
-* generate\_card\_image(date\_str, short\_summary, qr\_data, output\_path):  
-  * 使用 Pillow 建立一張 1080x720 的米黃色 (\#FDF6E3) 背景圖片。  
-  * 載入字體 (若 arial.ttf 不可用，則使用預設字體)。  
-  * 在 (60, 60\) 位置繪製日期文字 (字號 48)。  
-  * 在 (60, 200\) 位置繪製 30 字結語 (字號 72)。  
-  * 使用 qrcode 生成一個指向前端頁面 (包含 UUID) 的 250x250 QR Code 圖片。
-  * 將 QR Code 貼到 (780, 470\) 的位置。  
-  * 將最終圖片儲存到 `output_path`。
+*   **職責**: 此工具類別 (`CardAndPrinterTool`) 整合了卡片圖片生成與觸發硬體列印的功能。
+*   `generate_and_print_card(date_str, short_summary, qr_data)`:
+    *   **生成圖片**: 使用 Pillow 建立一張包含日期、結語和 QR Code 的卡片圖片，並儲存於本地。
+    *   **觸發列印**: 使用 `requests` 向 `hardware_gateway.py` 服務的 `/hardware/command` 端點發送一個 `{"command": "PRINT_CARD"}` 的 POST 請求。
+    *   Agent 在每日總結流程的最後，會呼叫此方法來完成實體卡片的產出。
 
 #### **7.6 core/tools.py \- Light Control Tool**
 
@@ -242,4 +249,29 @@ class SystemState:
 *   **啟動程序**: 使用 `lifespan` 管理器處理應用程式的生命週期。在啟動時，它會初始化 `agent`、啟動 `audio_service` 的監聽執行緒，並啟動 `agent.run_real_time_emotion_analysis()` 作為背景任務。在關閉時，它會優雅地取消背景任務。
 *   **API 路由**: 定義所有 `/api/...` 與 `/ws/...` 端點，並將需要複雜處理的請求（如 `/api/device/signal`）委派給 `agent` 的相應方法。
 *   它自身 **不** 包含核心業務邏輯的實作。
+
+### **8.0 硬體整合 (Hardware Integration)**
+
+專案的硬體互動由一個獨立的 Python 腳本 `hardware/hardware_gateway.py` 負責，它扮演著「硬體閘道器」的角色。
+
+#### **8.1 職責**
+
+*   **監聽 Arduino**: 持續透過 `pyserial` 監聽來自 Arduino 的序列埠訊息 (如 `WAVEDETECTED_START`)。
+*   **轉發訊號**: 將接收到的硬體訊息，轉換成定義好的訊號 (如 `WAKE_UP`)，並透過 HTTP POST 請求發送至主後端 `main.py` 的 `/api/device/signal` 端點。
+*   **接收指令**: 運行一個迷你的 FastAPI 伺服器，開放 `/hardware/command` 端點。
+*   **執行指令**: 當收到來自 `core/tools.py` 的指令時 (如 `PRINT_CARD`)，透過序列埠將對應的指令 (如 `PRINT_ON`) 發送給 Arduino。
+
+#### **8.2 運行方式**
+
+此閘道器必須作為一個獨立的行程與主後端 `main.py` 同時運行。
+
+```bash
+# 啟動主後端 (在專案根目錄)
+uvicorn backend.main:app --reload --port 8000
+
+# 啟動硬體閘道器 (在另一個終端機)
+python hardware/hardware_gateway.py
+```
+
+這種分離式架構確保了硬體通訊的穩定性不會影響核心後端服務。
 
