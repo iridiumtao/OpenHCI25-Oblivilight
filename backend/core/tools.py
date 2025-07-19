@@ -104,7 +104,6 @@ class CardAndPrinterTool:
         Sends a command to the hardware gateway to start the printing process.
         (This is a private method, the main entry point is `generate_and_print_card`)
         """
-        return False
         try:
             url = f"{HARDWARE_GATEWAY_URL}/hardware/command"
             payload = {"command": "PRINT_CARD"}

@@ -82,7 +82,7 @@ GATEWAY_PORT = 8001
 | `SLEEP_SIGNAL`     | `SLEEP`                | 觸碰關機睡眠 |
 | `FORGET_SIGNAL`    | `FORGET`               | 揮手遺忘     |
 
-### 4.2 (未實踐) 後端 -> Arduino
+### 4.2 後端 -> Arduino
 
 閘道器透過 `POST /hardware/command` 端點接收指令。
 

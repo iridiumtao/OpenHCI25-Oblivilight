@@ -100,7 +100,7 @@ void detectWave(float d, unsigned long t) {
       if (t - stateTime > MAX_INTERVAL) {
         resetWave();
       } else if (d > DISTANCE_THRESHOLD) {
-        Serial.println("👋 WAVEDETECTED!");
+        Serial.println("FORGET_SIGNAL");
         resetWave();
       }
       break;
@@ -144,7 +144,7 @@ void loop() {
 
   int touchState = digitalRead(TOUCH_PIN);
   if( touchState == HIGH){
-    Serial.println("Touched!");
+    Serial.println("WAKEUP_SIGNAL");
   }
 
   // ============ ✅ Waving to Light ============ //
@@ -168,7 +168,7 @@ void loop() {
       cmd.trim();  // 去掉潛在的 \r 或空白
 
       // 比對指令
-      if (cmd.equals("PRINT_ON")) {
+      if (cmd.equals("PRINT_CARD")) {
         newMotoSpin();
       }
   }
@@ -188,7 +188,7 @@ void loop() {
     if (reading != currentState) {
       currentState = reading;
       if (currentState) {
-        Serial.println("SCANNED");
+        Serial.println("REWIND_SIGNAL");
       } 
       // else {
       //   Serial.println("暗");
