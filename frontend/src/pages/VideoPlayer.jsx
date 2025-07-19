@@ -41,6 +41,7 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
       nextIndexFromPropRef.current = index;
       setNextScheduledIndex(index);
     }
+    console.log("🎯 Next scheduled index:", nextScheduledIndex);
   }, [index]);
 
   useEffect(() => {
@@ -78,7 +79,7 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
         timerRef.current = null;
       }
 
-      // 設定 3 秒後移除遮罩
+      // 移除遮罩
       handWavingTimerRef.current = setTimeout(() => {
         console.log("🫷 Hand waving timer completed");
         setShowHandWavingOverlay(false);
@@ -110,7 +111,7 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
     }
   }, [showHandWavingOverlay, isHandWaving]);
 
-  // 啟動每 3 秒的播放切換邏輯（只有在沒有遮罩時才啟動）
+  // 啟動每 10 秒的播放切換邏輯（只有在沒有遮罩時才啟動）
   useEffect(() => {
     if (!showHandWavingOverlay && !isHandWaving && !isTransitioning) {
       startPlaybackCycle();
@@ -139,7 +140,7 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
     }, interval);
   };
   const getNextIndex = () => {
-    // 优先使用最新的 prop index（如果有的话）
+    // 優先取得新的 index prop
     const propIndex = nextIndexFromPropRef.current;
     const isValidPropIndex =
       typeof propIndex === "number" &&
@@ -148,24 +149,22 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
       propIndex !== currentIndex;
 
     if (isValidPropIndex) {
-      console.log(`使用 prop index: ${propIndex}`);
+      console.log(`有新的 index, 使用它: ${propIndex}`);
       return propIndex;
     }
 
-    // 如果没有有效的 prop index，使用计划中的下一个索引
+    // 如果沒有有效的 index prop，則使用預設的計劃索引 (neutral)
     if (nextScheduledIndex !== currentIndex) {
-      console.log(`使用计划索引: ${nextScheduledIndex}`);
+      console.log(`使用原訂的: ${nextScheduledIndex}`);
       return nextScheduledIndex;
     }
 
-    // 特殊情况：如果当前是 video[0] 且 prop 也是 0，则不切换
+    // 如果當前已經是 video[0]，且沒有新的 index prop，則不切換
     if (currentIndex === 0 && (propIndex === 0 || propIndex === null)) {
-      console.log("当前已是 video[0] 且 prop 为 0，不切换");
-      return currentIndex; // 返回当前索引，不切换
+      console.log("已經在 video[0]，不切換");
+      return currentIndex; // 不切換，保持在 video[0]
     }
 
-    // 默认 fallback 到 video[0]
-    console.log("fallback 到 video[0]");
     return 0;
   };
 
