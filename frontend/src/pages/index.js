@@ -104,7 +104,6 @@ export default function Home() {
         index={targetIndex}
         isHandWaving={isHandWaving}
         onHandWavingChange={setIsHandWaving}
-        isSleeping={isSleeping}
       />
 
       <div
