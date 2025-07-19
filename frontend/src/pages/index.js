@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import VideoPlayer from "./VideoPlayer";
 import RewindPlayer from "./RewindPlayer";
 import { useProjectorSocket } from "../hooks/useProjectorSocket";
+import VideoPlayerNew from "./VideoPlayerNew";
 
 const WEBSOCKET_URL = "ws://localhost:8000/ws/projector";
 
@@ -109,7 +110,8 @@ export default function Home() {
 
   return (
     <div>
-      <VideoPlayer
+      <VideoPlayerNew index={targetIndex} />
+      {/* <VideoPlayer
         index={targetIndex}
         isHandWaving={isHandWaving}
         onHandWavingChange={setIsHandWaving}
@@ -137,7 +139,7 @@ export default function Home() {
         <span className={isConnected ? "text-green-400" : "text-red-400"}>
           {isConnected ? "Connected" : "Disconnected"}
         </span>
-      </div>
+      </div> */}
     </div>
   );
 }

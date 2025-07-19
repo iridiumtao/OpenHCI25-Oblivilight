@@ -14,8 +14,8 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
     "videos/angry.mp4",
   ];
 
-  const interval = 5000; // 必須播放滿 10 秒 3 second is for testing
-  const transitionDuration = 1500;
+  const interval = 10000; // video playing time when there's no new index prop
+  const transitionDuration = 1500; // video transition duration
   const handWavingDuration = 5000; // 10 秒遮罩持續時間
   const overlayTransitionDuration = 500; // 遮罩淡入淡出時間
 
