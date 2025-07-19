@@ -141,7 +141,7 @@ class Agent:
             logger.info("Wake-up signal received. Resetting conversation history.")
             self.system_state.conversation_history = []
             self.system_state.is_listening = True
-            await self.light_control_tool.set_light_effect("neutral") # Or a specific wake-up light
+            await self.light_control_tool.set_light_effect("IDLE", is_mode=True)
         elif signal == "SLEEP":
             await self.process_daily_summary()
         elif signal == "REWIND":
@@ -229,45 +229,46 @@ class Agent:
             self.system_state.reset_session()
             await self.light_control_tool.set_light_effect("IDLE", is_mode=True)
             return
+        
+        if False:
 
-        # 1. Get full summary from LLM
-        logger.info("Generating full summary...")
-        full_summary = await self.chains['summary_full'].ainvoke({"conversation": full_transcript})
+            # 1. Get full summary from LLM
+            logger.info("Generating full summary...")
+            full_summary = await self.chains['summary_full'].ainvoke({"conversation": full_transcript})
 
-        # 2. Get short summary from LLM
-        logger.info("Generating short summary...")
-        short_summary = await self.chains['summary_short'].ainvoke({"full_summary": full_summary})
+            # 2. Get short summary from LLM
+            logger.info("Generating short summary...")
+            short_summary = await self.chains['summary_short'].ainvoke({"full_summary": full_summary})
 
-        # 3. Save memory to datastore
-        memory_data = {
-            "full_summary": full_summary,
-            "short_summary": short_summary,
-            "transcript": full_transcript,
-        }
-        memory_uuid = create_memory(memory_data)
-        logger.info(f"Memory saved with UUID: {memory_uuid}")
+            # 3. Save memory to datastore
+            memory_data = {
+                "full_summary": full_summary,
+                "short_summary": short_summary,
+                "transcript": full_transcript,
+            }
+            memory_uuid = create_memory(memory_data)
+            logger.info(f"Memory saved with UUID: {memory_uuid}")
 
-        # 4. Generate card, save it, and trigger the print job
-        # The tool now handles both image generation and sending the print command
-        logger.info("Generating card and triggering print job...")
-        qr_data = f"http://localhost:3000/memory/{memory_uuid}" # Example URL, should be configurable
-        card_path = self.card_printer_tool.generate_and_print_card(
-            date_str=datetime.now().strftime("%Y-%m-%d"),
-            short_summary=short_summary,
-            qr_data=qr_data
-        )
+            # 4. Generate card, save it, and trigger the print job
+            # The tool now handles both image generation and sending the print command
+            logger.info("Generating card and triggering print job...")
+            qr_data = f"http://localhost:3000/memory/{memory_uuid}" # Example URL, should be configurable
+            card_path = self.card_printer_tool.generate_and_print_card(
+                date_str=datetime.now().strftime("%Y-%m-%d"),
+                short_summary=short_summary,
+                qr_data=qr_data
+            )
 
-        if card_path:
-            logger.info(f"Card generation and print trigger process completed. Image at: {card_path}")
-        else:
-            logger.error("Card generation or printing failed.")
+            if card_path:
+                logger.info(f"Card generation and print trigger process completed. Image at: {card_path}")
+            else:
+                logger.error("Card generation or printing failed.")
 
         # 5. Reset session for the next day
         logger.info("Resetting session...")
         self.system_state.reset_session()
 
         # 6. Set light to idle after finishing
-        await self.light_control_tool.set_light_effect("IDLE", is_mode=True)
         logger.info("'Daily summary' flow finished.")
 
 
