@@ -158,8 +158,9 @@ class CardAndPrinterTool:
         image = Image.new("RGB", (width, height), color=bg_color)
         draw = ImageDraw.Draw(image)
 
+        font_name = "jf-openhuninn-2.1.ttf"
+
         try:
-            font_name = "jf-openhuninn-2.1.ttf"
             date_font = ImageFont.truetype(font_name, 48)
             summary_font = ImageFont.truetype(font_name, 72)
         except IOError:
@@ -193,19 +194,6 @@ class CardAndPrinterTool:
         image.save(output_path)
         print(f"Card image saved to: {output_path}")
 
-
-# --- Light Control Tool Placeholder ---
-
-# The actual LightControlTool will need access to the WebSocket manager.
-# It will be fully implemented in main.py or passed in during initialization.
-def set_light_effect(effect_name: str):
-    """
-    Placeholder for the light control tool. This will be connected
-    to the WebSocket manager in the main application file.
-    """
-    print(f"[LightControlTool] Setting effect to: {effect_name}")
-    # In the final implementation, this will call a method on the WebSocket manager.
-    pass
 
 class LightControlTool:
     def __init__(self, websocket_manager):

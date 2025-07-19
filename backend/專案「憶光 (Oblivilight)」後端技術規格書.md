@@ -45,10 +45,8 @@
 │   │   ├── stt_service.py  # 封裝本地與雲端的 Whisper 呼叫
 │   │   └── tts_service.py  # 封裝 TTS 服務呼叫
 │   ├── datastore/          # (由程式自動建立) 存放日記 JSON 檔案  
-│   ├── static/videos/      # (手動建立) 存放燈效影片  
 │   ├── config/  
-│   │   ├── prompts.json  
-│   │   └── video_mapping.json  
+│   │   └── prompts.json  
 │   └── requirements.txt
 └── hardware/
     └── hardware_gateway.py # 獨立的硬體通訊服務
@@ -63,7 +61,7 @@
 ```JSON
 {  
   "emotion_analysis": {  
-    "system_prompt": "你是一個情緒分類器。分析以下使用者文字的情緒，並只回傳 JSON 物件，格式為 {{\"text_emotion\": \"<happy|sad|angry|surprised|neutral>\"}}。\n\n---\n使用者文字: {text}"
+    "system_prompt": "你是一個情緒分類器。分析以下使用者文字的情緒，並只回傳 JSON 物件，格式為 {{\"text_emotion\": \"<happy|sad|warm|optimistic|anxious|peaceful|depressed|lonely|angry|neutral>\"}}。\n\n---\n使用者文字: {text}"
   },  
   "daily_summary_full": {  
     "system_prompt": "你是一位溫柔且善於傾聽的日記助手。請將以下使用者整晚的對話，以第一人稱『我』的視角，整理成一段約 150-200 字的、流暢且帶有情感溫度的日記摘要。風格應該是內省的、平和的。"  
@@ -77,20 +75,6 @@
   "rag_conversation": {  
     "system_prompt": "你正在與使用者繼續一段過去的對話。以下是那天的日記摘要，請將其作為核心背景知識。在回應使用者的新問題時，請自然地結合這段舊有記憶。\\n--- \\n過往記憶: {injected_context}\\n---"  
   }  
-}
-```
-
-#### **4.2 config/video\_mapping.json**
-
-```JSON
-{  
-  "happy": "static/videos/happy_light.mp4",  
-  "sad": "static/videos/sad_light.mp4",  
-  "angry": "static/videos/angry_light.mp4",  
-  "surprised": "static/videos/surprised_light.mp4",  
-  "neutral": "static/videos/neutral_light.mp4",  
-  "SLEEP": "static/videos/sleep_mode.mp4",  
-  "IDLE": "static/videos/idle_breathing.mp4"  
 }
 ```
 
