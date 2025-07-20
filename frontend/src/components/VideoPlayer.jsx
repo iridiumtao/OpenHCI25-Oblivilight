@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import clsx from "clsx";
 
 const EMOTION_VIDEOS = {
@@ -17,22 +17,37 @@ const EMOTION_VIDEOS = {
 };
 
 const TRANSITION_DURATION_MS = 1000;
+const COOLDOWN_MS = 3000;
 
 export default function VideoPlayer({ emotion: targetEmotion = "neutral" }) {
   const videoARef = useRef(null);
   const videoBRef = useRef(null);
 
   const [activeSlot, setActiveSlot] = useState("A");
+  const [isOnCooldown, setIsOnCooldown] = useState(false);
   const [videoASrc, setVideoASrc] = useState(EMOTION_VIDEOS.neutral);
   const [videoBSrc, setVideoBSrc] = useState(null);
 
   const emotionInSlotA = useRef("neutral");
   const emotionInSlotB = useRef(null);
 
+  const startTransition = useCallback((newActiveSlot) => {
+    if (isOnCooldown) return;
+
+    setIsOnCooldown(true);
+    setActiveSlot(newActiveSlot);
+
+    setTimeout(() => {
+      setIsOnCooldown(false);
+    }, COOLDOWN_MS);
+  }, [isOnCooldown]);
+
   useEffect(() => {
     const activeEmotion = activeSlot === "A" ? emotionInSlotA.current : emotionInSlotB.current;
     
     if (targetEmotion && targetEmotion !== activeEmotion) {
+      if (isOnCooldown) return;
+
       const inactiveSlot = activeSlot === "A" ? "B" : "A";
       const newSrc = EMOTION_VIDEOS[targetEmotion];
 
@@ -43,9 +58,9 @@ export default function VideoPlayer({ emotion: targetEmotion = "neutral" }) {
         emotionInSlotA.current = targetEmotion;
         setVideoASrc(newSrc);
       }
-      setActiveSlot(inactiveSlot);
+      startTransition(inactiveSlot);
     }
-  }, [targetEmotion, activeSlot]);
+  }, [targetEmotion, activeSlot, isOnCooldown, startTransition]);
 
   useEffect(() => {
     const videoRef = activeSlot === 'A' ? videoARef.current : videoBRef.current;
@@ -58,7 +73,7 @@ export default function VideoPlayer({ emotion: targetEmotion = "neutral" }) {
 
 
   const handleVideoEnded = (slot) => {
-    if (slot !== activeSlot) return;
+    if (slot !== activeSlot || isOnCooldown) return;
 
     const endedEmotion = slot === "A" ? emotionInSlotA.current : emotionInSlotB.current;
 
@@ -73,7 +88,7 @@ export default function VideoPlayer({ emotion: targetEmotion = "neutral" }) {
         emotionInSlotA.current = "neutral";
         setVideoASrc(newSrc);
       }
-      setActiveSlot(inactiveSlot);
+      startTransition(inactiveSlot);
     }
   };
   

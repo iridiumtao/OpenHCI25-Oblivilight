@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useThrottle } from "@uidotdev/usehooks";
 
 const WEBSOCKET_URL = "ws://localhost:8000/ws/projector";
-const COMMAND_THROTTLE_MS = 3000;
 
 const EMOTION_MAP = {
   0: "neutral",
@@ -24,9 +22,6 @@ export function useProjectorState() {
   const [mode, setMode] = useState("IDLE");
   const [isConnected, setIsConnected] = useState(false);
   const ws = useRef(null);
-
-  const [lastCommand, setLastCommand] = useState(null);
-  const throttledCommand = useThrottle(lastCommand, COMMAND_THROTTLE_MS);
 
   const connect = useCallback(() => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
@@ -55,7 +50,12 @@ export function useProjectorState() {
       try {
         const message = JSON.parse(event.data);
         console.log("🎬 Received command:", message);
-        setLastCommand(message);
+
+        if (message.type === "SET_EMOTION" && message.payload.emotion) {
+          setEmotion(message.payload.emotion);
+        } else if (message.type === "SET_MODE" && message.payload.mode) {
+          setMode(message.payload.mode);
+        }
       } catch (error) {
         console.error("Failed to parse WebSocket message:", error);
       }
@@ -70,24 +70,6 @@ export function useProjectorState() {
       }
     };
   }, [connect]);
-
-  useEffect(() => {
-    if (!throttledCommand) {
-      return;
-    }
-
-    if (
-      throttledCommand.type === "SET_EMOTION" &&
-      throttledCommand.payload.emotion
-    ) {
-      setEmotion(throttledCommand.payload.emotion);
-    } else if (
-      throttledCommand.type === "SET_MODE" &&
-      throttledCommand.payload.mode
-    ) {
-      setMode(throttledCommand.payload.mode);
-    }
-  }, [throttledCommand]);
 
   useEffect(() => {
     // Auto-reset temporary modes back to IDLE
@@ -108,43 +90,34 @@ export function useProjectorState() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       const key = e.key.toLowerCase();
-      let command = null;
 
       if (!isNaN(parseInt(key, 10)) && parseInt(key, 10) in EMOTION_MAP) {
         const newEmotion = EMOTION_MAP[parseInt(key, 10)];
         console.log(`Key '${key}' pressed, setting emotion to ${newEmotion}`);
-        command = { type: "SET_EMOTION", payload: { emotion: newEmotion } };
+        setEmotion(newEmotion);
       } else {
-        let newMode = null;
         switch (key) {
           case "s":
             console.log("Key 's' pressed, setting mode to SLEEP");
-            newMode = "SLEEP";
+            setMode("SLEEP");
             break;
           case "w":
             console.log("Key 'w' pressed, setting mode to IDLE");
-            newMode = "IDLE";
+            setMode("IDLE");
             break;
           case "r":
             console.log("Key 'r' pressed, setting mode to REWIND");
-            newMode = "REWIND";
+            setMode("REWIND");
             break;
           case "f":
           case " ": // Space key for forget
             e.preventDefault();
             console.log("Key 'f' or space pressed, setting mode to FORGET");
-            newMode = "FORGET";
+            setMode("FORGET");
             break;
           default:
             break;
         }
-        if (newMode) {
-          command = { type: "SET_MODE", payload: { mode: newMode } };
-        }
-      }
-
-      if (command) {
-        setLastCommand(command);
       }
     };
 
