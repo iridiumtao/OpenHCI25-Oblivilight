@@ -22,19 +22,41 @@ function StatusIndicator({ isConnected }) {
 }
 
 function ModeOverlay({ mode }) {
-  const [isRewindVisible, setIsRewindVisible] = useState(false);
-  const [isForgetVisible, setIsForisVisible] = useState(false);
   const [isSleepVisible, setIsSleepVisible] = useState(false);
 
+  // States for FORGET effect
+  const [isForgetOverlayVisible, setIsForgetOverlayVisible] = useState(false);
+
+  // States for REWIND effect
+  const [isRewindBlackoutVisible, setIsRewindBlackoutVisible] = useState(false);
+  const [isRewindTextVisible, setIsRewindTextVisible] = useState(false);
+
   useEffect(() => {
-    setIsRewindVisible(mode === "REWIND");
-    setIsForisVisible(mode === "FORGET");
+    // SLEEP mode simple visibility
     setIsSleepVisible(mode === "SLEEP");
+
+    // FORGET mode animation
+    if (mode === "FORGET") {
+      setIsForgetOverlayVisible(true);
+    } else {
+      setIsForgetOverlayVisible(false);
+    }
+
+    // REWIND mode animation
+    if (mode === "REWIND") {
+      setIsRewindBlackoutVisible(true);
+      const textTimer = setTimeout(() => setIsRewindTextVisible(true), 700);
+      return () => clearTimeout(textTimer);
+    } else {
+      setIsRewindTextVisible(false);
+      const blackoutTimer = setTimeout(() => setIsRewindBlackoutVisible(false), 300); // Let text fade out first
+      return () => clearTimeout(blackoutTimer);
+    }
   }, [mode]);
 
   return (
     <>
-      {/* Sleep Blackout */}
+      {/* Sleep Blackout (z-10) */}
       <div
         className={clsx(
           "absolute inset-0 z-10 bg-black transition-opacity duration-1000",
@@ -42,25 +64,33 @@ function ModeOverlay({ mode }) {
         )}
       />
 
-      {/* Rewind Effect */}
+      {/* Forget Overlay (z-20) */}
       <div
         className={clsx(
-          "absolute inset-0 z-20 flex items-center justify-center transition-opacity duration-500",
-          isRewindVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+          "absolute inset-0 z-20 bg-black transition-opacity duration-500",
+          isForgetOverlayVisible ? "opacity-75" : "opacity-0 pointer-events-none"
+        )}
+      />
+
+      {/* Rewind Blackout (z-30) */}
+      <div
+        className={clsx(
+          "absolute inset-0 z-30 bg-black transition-opacity duration-300",
+          isRewindBlackoutVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+      />
+
+      {/* Rewind Text (z-40) */}
+      <div
+        className={clsx(
+          "absolute inset-0 z-40 flex items-center justify-center transition-opacity duration-300",
+          isRewindTextVisible ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >
         <div className="text-white text-6xl font-bold animate-pulse">
           REWIND
         </div>
       </div>
-
-      {/* Forget Effect */}
-      <div
-        className={clsx(
-          "absolute inset-0 z-30 bg-white",
-          isForgetVisible ? "animate-fade-in-out" : "opacity-0 pointer-events-none"
-        )}
-      />
     </>
   );
 }

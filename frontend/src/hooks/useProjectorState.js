@@ -91,10 +91,16 @@ export function useProjectorState() {
 
   useEffect(() => {
     // Auto-reset temporary modes back to IDLE
-    if (mode === "FORGET" || mode === "REWIND") {
+    if (mode === "FORGET") {
       const timer = setTimeout(() => {
         setMode("IDLE");
-      }, 5000); // Duration of the mode effect
+      }, 5000); // 5 seconds for FORGET effect
+      return () => clearTimeout(timer);
+    }
+    if (mode === "REWIND") {
+      const timer = setTimeout(() => {
+        setMode("IDLE");
+      }, 10000); // 10 seconds for REWIND effect
       return () => clearTimeout(timer);
     }
   }, [mode]);
