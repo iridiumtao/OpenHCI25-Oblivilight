@@ -147,6 +147,10 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
     }, interval);
   };
   const getNextIndex = () => {
+    console.log(`currentIndex: ${currentIndex}`);
+    console.log(`propIndex: ${nextIndexFromPropRef.current}`);
+    console.log(`nextScheduledIndex: ${nextScheduledIndex}`);
+
     // 優先取得新的 index prop
     const propIndex = nextIndexFromPropRef.current;
     const isValidPropIndex =
@@ -161,20 +165,16 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
 
     // 如果當前已經是 video[0]，且沒有新的 index prop，則不切換
     if (currentIndex === 0 && (propIndex === 0 || propIndex === null)) {
-      console.log("已經在 video[0]，不切換");
-      return currentIndex; // 不切換，保持在 video[0]
+      console.log("已經在 video[0]");
+      return currentIndex;
     }
 
+    console.log(`其他情況，回傳 0`);
     return 0;
   };
 
   const startTransition = (targetIndex) => {
-    if (
-      isTransitioning ||
-      targetIndex === currentIndex ||
-      showHandWavingOverlay
-    )
-      return;
+    if (isTransitioning || showHandWavingOverlay) return;
 
     const nextSrc = videos[targetIndex];
     const nextVideoRef = isSecondActive ? videoARef : videoBRef;
