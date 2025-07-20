@@ -71,7 +71,7 @@ void newMotoSpin() {
   motor.step(STEPS_PER_REV * 1.9);
   delay(3000);
   motor.step(-STEPS_PER_REV * 1.85);
-  // motor.step(-STEPS_PER_REV * 0.4);
+  // motor.step(STEPS_PER_REV * 0.8);
 
 
   // motor.step(-STEPS_PER_REV);
@@ -193,8 +193,6 @@ void loop() {
   //   flag = 1;
   // }
 
-  // newMotoSpin();
-
 
 
   // ============ Turn on the Light ============ //
@@ -219,7 +217,8 @@ void loop() {
   {
     if (touchStableState) {            // 只有 LOW→HIGH 觸發
       if (isAwake) {
-        Serial.println("SLEEP_SIGNAL");
+        // Serial.println("SLEEP_SIGNAL");
+        Serial.println("WAKEUP_SIGNAL");
         isAwake = false;               // 進入 Sleep
       } else {
         Serial.println("WAKEUP_SIGNAL");

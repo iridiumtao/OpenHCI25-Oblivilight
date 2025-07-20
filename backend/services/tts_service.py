@@ -22,19 +22,12 @@ def text_to_speech_and_play(text: str, voice: str = "nova"):
         logger.warning("TTS Service: Received empty text. Nothing to play.")
         return
 
-    # Using SSML to control speech properties. This is a more reliable method
     # than prepending instructions. The <prosody> tag helps in controlling
     # the rate, making the speech sound calmer and more gentle.
-    # Note: While SSML is standard, OpenAI's support for it is not fully documented.
-    # This approach is based on standard TTS practices.
-    ssml_input = f"""
-<speak>
-  <prosody rate="slow">
-    {text}
-  </prosody>
-</speak>
-"""
-
+    # Note: OpenAI's TTS API does not officially support SSML.
+    # Instead, we use the 'speed' parameter to control the speech rate.
+    # A value of 0.9 makes the speech slightly slower for a calmer tone.
+    
     try:
         # It's good practice to use a temporary directory for generated audio files.
         # For this project, we'll place it within the datastore directory.
@@ -49,7 +42,8 @@ def text_to_speech_and_play(text: str, voice: str = "nova"):
         response = client.audio.speech.create(
             model="tts-1-hd",
             voice=voice,
-            input=ssml_input
+            input=text,
+            speed=0.9
         )
 
         # Write the binary audio content to a file
