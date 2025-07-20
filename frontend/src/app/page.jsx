@@ -68,9 +68,13 @@ function ModeOverlay({ mode }) {
       {/* Forget Overlay (z-20) */}
       <div
         className={clsx(
-          "absolute inset-0 z-20 bg-black transition-opacity duration-500",
+          "absolute inset-0 z-20 bg-white transition-opacity duration-700",
           isForgetOverlayVisible ? "opacity-75" : "opacity-0 pointer-events-none"
         )}
+        style={{backgroundColor: "rgba(255, 255, 255, 0.1)",
+            backdropFilter: "blur(3px)",
+            mixBlendMode: "lighten",
+            filter: "grayscale(0.3) brightness(1.5)",}}
       />
 
       {/* Rewind Blackout (z-30) */}
@@ -98,7 +102,7 @@ export default function Home() {
   const { emotion, mode, isConnected } = useProjectorState();
 
   const emotionToPlay =
-    mode === "IDLE" || mode === "REWIND" ? emotion : "neutral";
+    mode === "IDLE" || mode === "FORGET" ? emotion : "neutral";
 
   return (
     <main className="relative w-screen h-screen bg-black overflow-hidden">
