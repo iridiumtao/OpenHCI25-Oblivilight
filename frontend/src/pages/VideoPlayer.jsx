@@ -48,6 +48,36 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
   }, [index]);
 
   useEffect(() => {
+  if (typeof index === "number" && index >= 0 && index < videos.length) {
+    console.log(`🔄 New index prop received: ${index}, current: ${currentIndex}`);
+    
+    // 如果新的 index 與當前不同，立即觸發轉場
+    if (index !== currentIndex && !showHandWavingOverlay) {
+      console.log(`🚀 Immediately transitioning to index: ${index}`);
+      
+      // 清除現有的計時器
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      
+      // 更新 ref 和 scheduled index
+      nextIndexFromPropRef.current = index;
+      setNextScheduledIndex(index);
+      
+      // 立即開始轉場
+      startTransition(index);
+    } else {
+      // 如果相同或者在手勢遮罩中，只更新 ref
+      nextIndexFromPropRef.current = index;
+      setNextScheduledIndex(index);
+    }
+  }
+  
+  console.log(`Next scheduled index: ${nextScheduledIndex}, index: ${index}`);
+}, [index, currentIndex, showHandWavingOverlay]);
+
+  useEffect(() => {
     if (!isTransitioning) {
       const shouldResetToZero = !(
         currentIndex === 0 &&
