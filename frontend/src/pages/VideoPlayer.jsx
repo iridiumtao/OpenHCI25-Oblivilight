@@ -137,13 +137,16 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
 
     timerRef.current = setTimeout(() => {
       const nextIndex = getNextIndex();
+      console.log(`nextIndex in transition, ${nextIndex}`);
 
-      if (nextIndex !== currentIndex) {
-        startTransition(nextIndex);
-      } else {
-        // 沒有要切換的話，重新啟動播放計時
-        startPlaybackCycle();
-      }
+      startTransition(nextIndex)
+
+      // if (nextIndex !== currentIndex) {
+      //   startTransition(nextIndex);
+      // } else {
+      //   // 沒有要切換的話，重新啟動播放計時
+      //   startPlaybackCycle();
+      // }
     }, interval);
   };
   const getNextIndex = () => {
@@ -164,17 +167,20 @@ function VideoPlayer({ index, isHandWaving = false, onHandWavingChange }) {
     }
 
     // 如果當前已經是 video[0]，且沒有新的 index prop，則不切換
-    if (currentIndex === 0 && (propIndex === 0 || propIndex === null)) {
-      console.log("已經在 video[0]");
-      return currentIndex;
-    }
+    // if (currentIndex === 0 && (propIndex === 0 || propIndex === null)) {
+    //   console.log("已經在 video[0]");
+    //   return currentIndex;
+    // }
 
-    console.log(`其他情況，回傳 0`);
+    console.log(`沒有收到新值，再次回到 0`);
     return 0;
   };
 
   const startTransition = (targetIndex) => {
-    if (isTransitioning || showHandWavingOverlay) return;
+    if (isTransitioning || showHandWavingOverlay) {
+      console.log(`轉場中或是手勢遮罩中`)
+      return;
+    }
 
     const nextSrc = videos[targetIndex];
     const nextVideoRef = isSecondActive ? videoARef : videoBRef;
