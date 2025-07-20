@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import clsx from "clsx";
 import { useProjectorState } from "../hooks/useProjectorState";
+import RewindPlayer from "@/components/RewindPlayer";
 
 // Dynamically import VideoPlayer to avoid SSR issues with video elements
 const VideoPlayer = dynamic(() => import("../components/VideoPlayer"), {
@@ -87,9 +88,7 @@ function ModeOverlay({ mode }) {
           isRewindTextVisible ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >
-        <div className="text-white text-6xl font-bold animate-pulse">
-          REWIND
-        </div>
+        <RewindPlayer />
       </div>
     </>
   );
