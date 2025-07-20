@@ -3,6 +3,7 @@ import serial
 import time
 import requests
 import threading
+import argparse
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -10,11 +11,11 @@ import uvicorn
 
 # --- 設定 ---
 # 請根據實際情況修改
-SERIAL_PORT = '/dev/cu.usbserial-110'  # Arduino 的序列埠
+SERIAL_PORT = '/dev/cu.usbserial-110'  # Arduino 的序列埠 (預設值，可由 --port 參數覆寫)
 BAUD_RATE = 9600
 MAIN_BACKEND_URL = "http://localhost:8000/api/device/signal"
 GATEWAY_HOST = "0.0.0.0"
-GATEWAY_PORT = 8001
+GATEWAY_PORT = 8001 # (預設值，可由 --gateway-port 參數覆寫)
 
 # --- Lifespan Manager ---
 @asynccontextmanager
@@ -145,6 +146,16 @@ async def execute_hardware_command(command_data: Command):
         raise HTTPException(status_code=400, detail=f"未知的指令: '{cmd}'")
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Hardware Gateway for Arduino communication.")
+    parser.add_argument("--port", type=str, help="The serial port number suffix for the Arduino. E.g., '110' for '/dev/cu.usbserial-110'.")
+    parser.add_argument("--gateway-port", type=int, default=8001, help="The port for the gateway server to run on.")
+    args = parser.parse_args()
+
+    if args.port:
+        SERIAL_PORT = f'/dev/cu.usbserial-{args.port}'
+
+    GATEWAY_PORT = args.gateway_port
+
     print("硬體閘道器 (Hardware Gateway) 啟動中...")
     print(f"它將會監聽來自序列埠 '{SERIAL_PORT}' 的訊號。")
     print(f"並將訊號轉發到: {MAIN_BACKEND_URL}")
