@@ -23,8 +23,8 @@ PROMPTS = load_prompts()
 
 # --- Initialize LLM ---
 # Using a generic name, can be swapped with other models if needed
-llm_nano = ChatOpenAI(
-    model=os.getenv("OPENAI_MODEL_NAME", "gpt-4.1-nano"),
+llm_emotion_analysis = ChatOpenAI(
+    model=os.getenv("OPENAI_MODEL_NAME", "gpt-4o-mini"),
     temperature=float(os.getenv("OPENAI_TEMPERATURE", 0.7))
 )
 
@@ -39,7 +39,7 @@ llm_mini = ChatOpenAI(
 emotion_prompt_template = PROMPTS["emotion_analysis"]["system_prompt"]
 logger.info(f"Emotion analysis prompt template: {emotion_prompt_template}")
 emotion_analysis_prompt = ChatPromptTemplate.from_template(emotion_prompt_template)
-emotion_analysis_chain = emotion_analysis_prompt | llm_nano | JsonOutputParser()
+emotion_analysis_chain = emotion_analysis_prompt | llm_emotion_analysis | JsonOutputParser()
 
 
 # 2. Daily Summary (Full) Chain
@@ -60,7 +60,7 @@ daily_summary_short_chain = daily_summary_short_prompt | llm_mini | StrOutputPar
 forget_confirmation_prompt = ChatPromptTemplate.from_template(
     PROMPTS["forget_confirmation"]["system_prompt"]
 )
-forget_confirmation_chain = forget_confirmation_prompt | llm_nano | StrOutputParser()
+forget_confirmation_chain = forget_confirmation_prompt | llm_mini | StrOutputParser()
 
 
 # 5. RAG Conversation Chain

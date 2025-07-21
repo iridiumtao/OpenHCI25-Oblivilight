@@ -7,10 +7,7 @@ import queue
 from backend.core.chains import get_chains
 from backend.core.state import system_state
 from backend.core.tools import create_memory, CardAndPrinterTool, LightControlTool
-# Temporarily switching to Yating TTS for testing
-from backend.services.tts_service import (
-    text_to_speech_and_play_yating as text_to_speech_and_play,
-)
+from backend.services.tts_service import speak
 from backend.services.stt_service import transcribe_realtime
 from backend.services.audio_service import audio_q
 import logging
@@ -41,8 +38,8 @@ class Agent:
         """
         buffer = np.zeros((0, 1), dtype=np.float32)
         # Configuration based on whisper_realtime.py
-        WINDOW_SEC = 10
-        STEP_SEC = 9
+        WINDOW_SEC = 8
+        STEP_SEC = 3
         TRIM_OLD_AUDIO = True
         MAX_BUFFER_SEC = 12
         SAMPLE_RATE = 16_000
@@ -132,6 +129,23 @@ class Agent:
 
     async def handle_signal(self, signal: str):
         """Main entry point for handling signals from the device."""
+        # Handle forget signal with its own lock to prevent race conditions
+        if signal in ["FORGET", "FORGET_10S", "FORGET_8S", "FORGET_30S"]:
+            # Only process FORGET if the system is in a listening (wake-up) state.
+            if not self.system_state.is_listening:
+                logger.warning(
+                    f"Forget signal '{signal}' received but agent is not in listening state. Ignoring."
+                )
+                return
+
+            if self.system_state.is_forgetting:
+                logger.warning(f"Agent is already forgetting. Signal '{signal}' ignored.")
+                return
+            # This is the main entry point for forget, so we let it through
+            # and let process_forget_memory handle the state changes.
+            await self.process_forget_memory(signal)
+            return
+
         if self.system_state.is_processing:
             logger.warning(f"Agent is busy processing. Signal '{signal}' ignored.")
             return
@@ -141,68 +155,79 @@ class Agent:
             logger.info("Wake-up signal received. Resetting conversation history.")
             self.system_state.conversation_history = []
             self.system_state.is_listening = True
-            await self.light_control_tool.set_light_effect("neutral") # Or a specific wake-up light
-        elif signal == "SLEEP_TRIGGER":
+            await self.light_control_tool.set_light_effect("IDLE", is_mode=True)
+        elif signal == "SLEEP":
             await self.process_daily_summary()
-        elif signal in ["FORGET_8S", "FORGET_30S"]:
-            await self.process_forget_memory(signal)
+        elif signal == "REWIND":
+            logger.info("Rewind signal received. Broadcasting to frontend.")
+            await self.light_control_tool.set_light_effect("REWIND", is_mode=True)
+            # You can add more logic here if the backend needs to do something
+            # for rewind, e.g., fetching past memories.
+        # The FORGET signal is handled above with its own lock logic.
         else:
             logger.warning(f"Unknown signal received: {signal}")
 
     async def process_forget_memory(self, signal: str):
         """Handles the logic for forgetting the last part of the conversation."""
+        # Set locks to prevent other operations and concurrent forgetting
+        self.system_state.is_forgetting = True
         self.system_state.is_processing = True
-        logger.info("Processing 'forget memory' flow...")
-
-        # Assuming an average speaking rate of ~3 Chinese characters per second for estimation.
-        # FORGET_8S: 10s * 3 chars/s ≈ 30 chars
-        # FORGET_30S: 30s * 3 chars/s = 60 chars
-        chars_to_forget = 60 if signal == "FORGET_30S" else 30
-
-        if not self.system_state.conversation_history:
-            logger.info("Conversation history is empty. Nothing to forget.")
-            self.system_state.is_processing = False
-            return
-
-        full_text = "".join(self.system_state.conversation_history)
-
-        logger.info(f"Full conversation text (char count: {len(full_text)}): {full_text}")
-
-        remaining_text = ""
-        if len(full_text) > chars_to_forget:
-            remaining_text = full_text[:-chars_to_forget]
         
-
-
-        # Update conversation history based on what remains.
-        # We replace the history with a single entry containing the remaining text.
-        self.system_state.conversation_history = [remaining_text] if remaining_text else []
-
-        # 防止給予TTS過多的上下文，專注於最新的內容
-        if len(remaining_text) > 90:
-            remaining_text = remaining_text[:90]
-
-        logger.info(f"Remaining conversation after forgetting: {remaining_text}")
-
-        # Always generate confirmation from the LLM, even if the remaining conversation is empty.
-        # The prompt is designed to handle this gracefully.
-        confirmation_result = await self.chains['forget_confirm'].ainvoke(
-            {"conversation": remaining_text}
-        )
-        confirmation_message = confirmation_result
-
-        logger.info(f"LLM forget confirmation: {confirmation_message}")
-
-        # Play the confirmation message using the new TTS service
         try:
-            # Running in a separate thread to avoid blocking the async event loop
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, text_to_speech_and_play, confirmation_message)
-        except Exception as e:
-            logger.error(f"Error playing TTS confirmation: {e}", exc_info=True)
-
-        self.system_state.is_processing = False
-        logger.info("'Forget memory' flow finished.")
+            await self.light_control_tool.set_light_effect("FORGET", is_mode=True)
+            logger.info("Processing 'forget memory' flow...")
+    
+            # Assuming an average speaking rate of ~3 Chinese characters per second for estimation.
+            # FORGET_8S: 10s * 3 chars/s ≈ 30 chars
+            # FORGET_30S: 30s * 3 chars/s = 60 chars
+            chars_to_forget = 90 if signal == "FORGET_30S" else 30
+    
+            if not self.system_state.conversation_history:
+                logger.info("Conversation history is empty. Nothing to forget.")
+                # No need to return here, the logic below will handle it
+                # and the state will be reset in the finally block.
+    
+            full_text = "".join(self.system_state.conversation_history)
+    
+            logger.info(f"Full conversation text (char count: {len(full_text)}): {full_text}")
+    
+            remaining_text = ""
+            if len(full_text) > chars_to_forget:
+                remaining_text = full_text[:-chars_to_forget]
+            
+    
+    
+            # Update conversation history based on what remains.
+            # We replace the history with a single entry containing the remaining text.
+            self.system_state.conversation_history = [remaining_text] if remaining_text else []
+    
+            # 防止給予TTS過多的上下文，專注於最新的內容
+            if len(remaining_text) > 90:
+                remaining_text = remaining_text[-90:]
+    
+            logger.info(f"Remaining conversation after forgetting: {remaining_text}")
+    
+            # Always generate confirmation from the LLM, even if the remaining conversation is empty.
+            # The prompt is designed to handle this gracefully.
+            confirmation_result = await self.chains['forget_confirm'].ainvoke(
+                {"conversation": remaining_text}
+            )
+            confirmation_message = confirmation_result
+    
+            logger.info(f"LLM forget confirmation: {confirmation_message}")
+    
+            # Play the confirmation message using the new TTS service
+            try:
+                # Running in a separate thread to avoid blocking the async event loop
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, speak, confirmation_message)
+            except Exception as e:
+                logger.error(f"Error playing TTS confirmation: {e}", exc_info=True)
+        finally:
+            # Release locks
+            self.system_state.is_processing = False
+            self.system_state.is_forgetting = False
+            logger.info("'Forget memory' flow finished.")
 
 
     async def process_daily_summary(self):
@@ -224,22 +249,27 @@ class Agent:
             await self.light_control_tool.set_light_effect("IDLE", is_mode=True)
             return
 
-        # 1. Get full summary from LLM
-        logger.info("Generating full summary...")
-        full_summary = await self.chains['summary_full'].ainvoke({"conversation": full_transcript})
+        memory_uuid = "uuid"
+        short_summary = ""
 
-        # 2. Get short summary from LLM
-        logger.info("Generating short summary...")
-        short_summary = await self.chains['summary_short'].ainvoke({"full_summary": full_summary})
+        if False:
 
-        # 3. Save memory to datastore
-        memory_data = {
-            "full_summary": full_summary,
-            "short_summary": short_summary,
-            "transcript": full_transcript,
-        }
-        memory_uuid = create_memory(memory_data)
-        logger.info(f"Memory saved with UUID: {memory_uuid}")
+            # 1. Get full summary from LLM
+            logger.info("Generating full summary...")
+            full_summary = await self.chains['summary_full'].ainvoke({"conversation": full_transcript})
+
+            # 2. Get short summary from LLM
+            logger.info("Generating short summary...")
+            short_summary = await self.chains['summary_short'].ainvoke({"full_summary": full_summary})
+
+            # 3. Save memory to datastore
+            memory_data = {
+                "full_summary": full_summary,
+                "short_summary": short_summary,
+                "transcript": full_transcript,
+            }
+            memory_uuid = create_memory(memory_data)
+            logger.info(f"Memory saved with UUID: {memory_uuid}")
 
         # 4. Generate card, save it, and trigger the print job
         # The tool now handles both image generation and sending the print command
@@ -261,7 +291,6 @@ class Agent:
         self.system_state.reset_session()
 
         # 6. Set light to idle after finishing
-        await self.light_control_tool.set_light_effect("IDLE", is_mode=True)
         logger.info("'Daily summary' flow finished.")
 
 

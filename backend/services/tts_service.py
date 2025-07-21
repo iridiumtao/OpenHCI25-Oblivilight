@@ -8,6 +8,10 @@ import base64
 
 logger = logging.getLogger(__name__)
 
+#    - "OPENAI": Uses OpenAI's TTS (default).
+#    - "YATING": Uses Yating's TTS.
+TTS_PROVIDER = "OPENAI"
+
 
 def text_to_speech_and_play(text: str, voice: str = "nova"):
     """
@@ -18,19 +22,12 @@ def text_to_speech_and_play(text: str, voice: str = "nova"):
         logger.warning("TTS Service: Received empty text. Nothing to play.")
         return
 
-    # Using SSML to control speech properties. This is a more reliable method
     # than prepending instructions. The <prosody> tag helps in controlling
     # the rate, making the speech sound calmer and more gentle.
-    # Note: While SSML is standard, OpenAI's support for it is not fully documented.
-    # This approach is based on standard TTS practices.
-    ssml_input = f"""
-<speak>
-  <prosody rate="slow">
-    {text}
-  </prosody>
-</speak>
-"""
-
+    # Note: OpenAI's TTS API does not officially support SSML.
+    # Instead, we use the 'speed' parameter to control the speech rate.
+    # A value of 0.9 makes the speech slightly slower for a calmer tone.
+    
     try:
         # It's good practice to use a temporary directory for generated audio files.
         # For this project, we'll place it within the datastore directory.
@@ -45,7 +42,8 @@ def text_to_speech_and_play(text: str, voice: str = "nova"):
         response = client.audio.speech.create(
             model="tts-1-hd",
             voice=voice,
-            input=ssml_input
+            input=text,
+            speed=0.9
         )
 
         # Write the binary audio content to a file
@@ -134,4 +132,22 @@ def text_to_speech_and_play_yating(text: str):
     except (KeyError, TypeError, base64.binascii.Error) as e:
         logger.error(f"Yating TTS (v3): Failed to parse or decode API response: {e}", exc_info=True)
     except Exception as e:
-        logger.error(f"Yating TTS (v3): An unexpected error occurred: {e}", exc_info=True) 
+        logger.error(f"Yating TTS (v3): An unexpected error occurred: {e}", exc_info=True)
+
+
+def speak(text: str):
+    """
+    Dynamically selects and uses the configured TTS service to speak the text.
+    The selection is based on the `TTS_PROVIDER` global variable.
+
+    """
+    provider = TTS_PROVIDER
+
+    if provider == "YATING":
+        logger.info(f"Routing to Yating TTS for: '{text[:30]}...'")
+        text_to_speech_and_play_yating(text)
+    else:
+        if provider != "OPENAI":
+            logger.warning(f"Unknown TTS_PROVIDER '{provider}'. Defaulting to OpenAI.")
+        logger.info(f"Routing to OpenAI TTS for: '{text[:30]}...'")
+        text_to_speech_and_play(text) 

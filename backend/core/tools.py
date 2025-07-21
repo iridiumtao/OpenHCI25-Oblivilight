@@ -13,7 +13,12 @@ import requests
 # --- Load Environment Variables ---
 load_dotenv()
 DATABASE_PATH = Path(os.getenv("DATABASE_PATH", "datastore"))
-HARDWARE_GATEWAY_URL = os.getenv("HARDWARE_GATEWAY_URL", "http://localhost:8001")
+
+# --- Hardware Gateway Configuration ---
+# As per specification, printing is handled by the gateway on port 8002.
+PRINTER_GATEWAY_URL = "http://localhost:8002"
+# Other hardware commands (if any) are handled by the gateway on port 8001.
+GENERAL_GATEWAY_URL = "http://localhost:8001"
 
 
 # Ensure the datastore directory exists
@@ -105,7 +110,7 @@ class CardAndPrinterTool:
         (This is a private method, the main entry point is `generate_and_print_card`)
         """
         try:
-            url = f"{HARDWARE_GATEWAY_URL}/hardware/command"
+            url = f"{PRINTER_GATEWAY_URL}/hardware/command"
             payload = {"command": "PRINT_CARD"}
             response = requests.post(url, json=payload, timeout=5) # 5-second timeout
             response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
@@ -113,8 +118,8 @@ class CardAndPrinterTool:
             print(f"Successfully sent 'PRINT_CARD' command to hardware gateway. Response: {response.json()}")
             return True
         except requests.exceptions.RequestException as e:
-            print(f"Error: Could not send command to hardware gateway at {HARDWARE_GATEWAY_URL}.")
-            print(f"Please ensure the hardware_gateway.py service is running and accessible.")
+            print(f"Error: Could not send command to hardware gateway at {PRINTER_GATEWAY_URL}.")
+            print(f"Please ensure the arduino_gateway.py service on port 8002 is running and accessible.")
             print(f"Details: {e}")
             return False
 
@@ -158,8 +163,9 @@ class CardAndPrinterTool:
         image = Image.new("RGB", (width, height), color=bg_color)
         draw = ImageDraw.Draw(image)
 
+        font_name = "jf-openhuninn-2.1.ttf"
+
         try:
-            font_name = "jf-openhuninn-2.1.ttf"
             date_font = ImageFont.truetype(font_name, 48)
             summary_font = ImageFont.truetype(font_name, 72)
         except IOError:
@@ -193,19 +199,6 @@ class CardAndPrinterTool:
         image.save(output_path)
         print(f"Card image saved to: {output_path}")
 
-
-# --- Light Control Tool Placeholder ---
-
-# The actual LightControlTool will need access to the WebSocket manager.
-# It will be fully implemented in main.py or passed in during initialization.
-def set_light_effect(effect_name: str):
-    """
-    Placeholder for the light control tool. This will be connected
-    to the WebSocket manager in the main application file.
-    """
-    print(f"[LightControlTool] Setting effect to: {effect_name}")
-    # In the final implementation, this will call a method on the WebSocket manager.
-    pass
 
 class LightControlTool:
     def __init__(self, websocket_manager):

@@ -65,9 +65,6 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Oblivilight Backend", lifespan=lifespan)
 
-# Mount static files for videos
-app.mount("/static", StaticFiles(directory="backend/static"), name="static")
-
 
 # --- WebSocket Connection Manager ---
 class ConnectionManager:
@@ -221,7 +218,7 @@ async def device_signal(payload: DeviceSignal):
     }
     ```
     """
-    valid_signals = ["FORGET_8S", "FORGET_30S", "SLEEP_TRIGGER", "WAKE_UP"]
+    valid_signals = ["WAKE_UP", "SLEEP", "REWIND", "FORGET"]
     if payload.signal not in valid_signals:
         raise HTTPException(status_code=400, detail="Invalid signal type.")
 

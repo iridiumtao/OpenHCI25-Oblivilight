@@ -45,13 +45,11 @@
 │   │   ├── stt_service.py  # 封裝本地與雲端的 Whisper 呼叫
 │   │   └── tts_service.py  # 封裝 TTS 服務呼叫
 │   ├── datastore/          # (由程式自動建立) 存放日記 JSON 檔案  
-│   ├── static/videos/      # (手動建立) 存放燈效影片  
 │   ├── config/  
-│   │   ├── prompts.json  
-│   │   └── video_mapping.json  
+│   │   └── prompts.json  
 │   └── requirements.txt
 └── hardware/
-    └── hardware_gateway.py # 獨立的硬體通訊服務
+    └── arduino_gateway.py # 獨立的硬體通訊服務
 ```
 
 ### **4.0 設定檔 (Configuration Files)**
@@ -61,37 +59,23 @@
 #### **4.1 config/prompts.json**
 
 ```JSON
-{  
-  "emotion_analysis": {  
-    "system_prompt": "你是一個情緒分類器。分析以下使用者文字的情緒，並只回傳 JSON 物件，格式為 {{\"text_emotion\": \"<happy|sad|angry|surprised|neutral>\"}}。\n\n---\n使用者文字: {text}"
-  },  
-  "daily_summary_full": {  
-    "system_prompt": "你是一位溫柔且善於傾聽的日記助手。請將以下使用者整晚的對話，以第一人稱『我』的視角，整理成一段約 150-200 字的、流暢且帶有情感溫度的日記摘要。風格應該是內省的、平和的。"  
-  },  
-  "daily_summary_short": {  
-    "system_prompt": "你是一位精煉短語的詩人。請將以下日記摘要的核心精髓，濃縮成一句 30 字以內的、詩意且耐人尋味的結語。"  
-  },  
-  "forget_confirmation": {  
-    "system_prompt": "使用者剛剛選擇忘記了一段對話。請簡短地總結目前還記得的對話內容，並用溫和的語氣說出『我還記得的是...』作為開頭，讓使用者知道對話是從哪裡繼續的。"  
-  },  
-  "rag_conversation": {  
-    "system_prompt": "你正在與使用者繼續一段過去的對話。以下是那天的日記摘要，請將其作為核心背景知識。在回應使用者的新問題時，請自然地結合這段舊有記憶。\\n--- \\n過往記憶: {injected_context}\\n---"  
-  }  
-}
-```
-
-#### **4.2 config/video\_mapping.json**
-
-```JSON
-{  
-  "happy": "static/videos/happy_light.mp4",  
-  "sad": "static/videos/sad_light.mp4",  
-  "angry": "static/videos/angry_light.mp4",  
-  "surprised": "static/videos/surprised_light.mp4",  
-  "neutral": "static/videos/neutral_light.mp4",  
-  "SLEEP": "static/videos/sleep_mode.mp4",  
-  "IDLE": "static/videos/idle_breathing.mp4"  
-}
+{
+  "emotion_analysis": {
+    "system_prompt": "你是一個情緒分類器。分析以下使用者文字的情緒，如果使用者明確說了「晚安」，請歸類為 'sleep'。並只回傳 JSON 物件，格式為 {{\"text_emotion\": \"<happy|sad|warm|optimistic|anxious|peaceful|depressed|lonely|angry|neutral|sleep>\"}}。\n\n---\n使用者文字: {text}"
+  },
+  "daily_summary_full": {
+    "system_prompt": "你是一位很會寫故事摘要的出版社編輯，請把使用者的每日日記整理成完整摘要，語氣溫暖、口語化，讓使用者日後可以清楚的回顧。\n\n---\n完整對話: {conversation}"
+  },
+  "daily_summary_short": {
+    "system_prompt": "你是一位很會統整內容的出版社編輯，請把使用者今天紀錄內容最重要的部分變成500字內的摘要和結語，有標點符號，語氣輕鬆自然又溫暖，可以輸出到小卡鼓勵使用者。\n\n---\n完整摘要: {full_summary}"
+  },
+  "forget_confirmation": {
+    "system_prompt": "你是一位記憶管家，系統已刪除使用者指定的一段內容。請根據以下剩餘的對話，向使用者溫和地確認，例如「我們剛剛是不是聊到關於...？」來繼續對話。請保持回應簡短，並且確保以一個問題來繼續對話。\n\n---\n剩餘對話：{conversation}"
+  },
+  "rag_conversation": {
+    "system_prompt": "你是一位長期對話助理，請把使用者承接上段對話的內容自然融入到之前的紀錄中\n\n--- \n過往記憶: {injected_context}\n---"
+  }
+} 
 ```
 
 ### **5.0 核心邏輯與狀態管理 (core/agent.py)**
@@ -130,11 +114,12 @@ class SystemState:
 2.  **硬體訊號處理**:
     *   所有來自硬體的訊號（透過 `/api/device/signal`）都會被路由到 `agent.handle_signal` 方法。
     *   **`WAKE_UP`**: 設定 `system_state.is_listening = True`，並重設對話歷史，準備開始新的對話。
-    *   **`SLEEP_TRIGGER`**: 呼叫 `agent.process_daily_summary` 流程。
-    *   **`FORGET_8S` / `FORGET_30S`**: 呼叫 `agent.process_forget_memory` 流程。
+    *   **`SLEEP`**: 呼叫 `agent.process_daily_summary` 流程。
+    *   **`REWIND`**: 觸發前端燈效。
+    *   **`FORGET`**: 呼叫 `agent.process_forget_memory` 流程。
 3.  **忘記記憶流程**:
     *   設定 `system_state.is_processing = True`。
-    *   根據訊號，計算需移除的字數（`FORGET_8S` 約 30 字，`FORGET_30S` 約 60 字）。
+    *   根據訊號，計算需移除的字數。
     *   操作 `system_state.conversation_history` 列表，從後往前移除訊息，直到滿足字數。
     *   使用 `forget_confirmation` prompt 產生確認摘要。
     *   呼叫 `tts_service` 播放摘要語音，給予使用者聽覺回饋。
@@ -166,7 +151,7 @@ class SystemState:
 
 * **路由**: POST /api/device/signal  
 * **功能**: **接收來自獨立運行的「硬體閘道器」的訊號**，觸發後端核心行為。  
-* **請求 Body**: {"signal": "<signal_type>"}，signal_type 可為 "FORGET_8S", "FORGET_30S", "SLEEP_TRIGGER", "WAKE_UP"。  
+* **請求 Body**: {"signal": "<signal_type>"}，signal_type 可為 "WAKE_UP", "SLEEP", "REWIND", "FORGET"。
 * **成功回應**: 200 OK {"status": "ok", "message": "Signal 'WAKE_UP' received and is being processed."}。
 * **錯誤回應**: 400 Bad Request {"detail": "Invalid signal type."}。
 
@@ -224,7 +209,7 @@ class SystemState:
 *   **職責**: 此工具類別 (`CardAndPrinterTool`) 整合了卡片圖片生成與觸發硬體列印的功能。
 *   `generate_and_print_card(date_str, short_summary, qr_data)`:
     *   **生成圖片**: 使用 Pillow 建立一張包含日期、結語和 QR Code 的卡片圖片，並儲存於本地。
-    *   **觸發列印**: 使用 `requests` 向 `hardware_gateway.py` 服務的 `/hardware/command` 端點發送一個 `{"command": "PRINT_CARD"}` 的 POST 請求。
+    *   **觸發列印**: 使用 `requests` 向 `arduino_gateway.py` 服務的 `/hardware/command` 端點發送一個 `{"command": "PRINT_CARD"}` 的 POST 請求。
     *   Agent 在每日總結流程的最後，會呼叫此方法來完成實體卡片的產出。
 
 #### **7.6 core/tools.py \- Light Control Tool**
@@ -252,11 +237,11 @@ class SystemState:
 
 ### **8.0 硬體整合 (Hardware Integration)**
 
-專案的硬體互動由一個獨立的 Python 腳本 `hardware/hardware_gateway.py` 負責，它扮演著「硬體閘道器」的角色。
+專案的硬體互動由一個獨立的 Python 腳本 `hardware/arduino_gateway.py` 負責，它扮演著「硬體閘道器」的角色。
 
 #### **8.1 職責**
 
-*   **監聽 Arduino**: 持續透過 `pyserial` 監聽來自 Arduino 的序列埠訊息 (如 `WAVEDETECTED_START`)。
+*   **監聽 Arduino**: 持續透過 `pyserial` 監聽來自 Arduino 的序列埠訊息 (如 `WAKEUP_SIGNAL`, `REWIND_SIGNAL`, `SLEEP_SIGNAL`, `FORGET_SIGNAL`)。
 *   **轉發訊號**: 將接收到的硬體訊息，轉換成定義好的訊號 (如 `WAKE_UP`)，並透過 HTTP POST 請求發送至主後端 `main.py` 的 `/api/device/signal` 端點。
 *   **接收指令**: 運行一個迷你的 FastAPI 伺服器，開放 `/hardware/command` 端點。
 *   **執行指令**: 當收到來自 `core/tools.py` 的指令時 (如 `PRINT_CARD`)，透過序列埠將對應的指令 (如 `PRINT_ON`) 發送給 Arduino。
@@ -270,7 +255,7 @@ class SystemState:
 uvicorn backend.main:app --reload --port 8000
 
 # 啟動硬體閘道器 (在另一個終端機)
-python hardware/hardware_gateway.py
+python hardware/arduino_gateway.py
 ```
 
 這種分離式架構確保了硬體通訊的穩定性不會影響核心後端服務。

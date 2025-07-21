@@ -10,6 +10,7 @@ class SystemState:
     def __init__(self):
         self.is_listening: bool = False
         self.is_processing: bool = False  # Lock for tasks like forgetting or summarizing
+        self.is_forgetting: bool = False
         self.injected_context: Optional[str] = None
         self.conversation_history: List[str] = []
         self.full_audio_path: Optional[str] = None
@@ -18,6 +19,7 @@ class SystemState:
         """Resets the state for a new user session."""
         self.is_listening = False
         self.is_processing = False
+        self.is_forgetting = False
         self.injected_context = None
         self.conversation_history = []
         self.full_audio_path = None
