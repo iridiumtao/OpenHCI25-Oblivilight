@@ -16,86 +16,73 @@ const EMOTION_VIDEOS = {
   angry: "videos/angry.mp4",
 };
 
-const TRANSITION_DURATION_MS = 10000;
+const TRANSITION_DURATION_MS = 2000;
 const COOLDOWN_MS = 3000;
 
 export default function VideoPlayer({ emotion: targetEmotion = "neutral" }) {
   const videoARef = useRef(null);
   const videoBRef = useRef(null);
-
+  
   const [activeSlot, setActiveSlot] = useState("A");
-  const [isOnCooldown, setIsOnCooldown] = useState(false);
   const [videoASrc, setVideoASrc] = useState(EMOTION_VIDEOS.neutral);
   const [videoBSrc, setVideoBSrc] = useState(null);
-  const [isBlending, setIsBlending] = useState(false);
-
+  const [isOnCooldown, setIsOnCooldown] = useState(false);
 
   const emotionInSlotA = useRef("neutral");
   const emotionInSlotB = useRef(null);
-
-  const startTransition = useCallback((newActiveSlot) => {
+  
+  const transitionToVideo = useCallback((newEmotion, newSlot) => {
     if (isOnCooldown) return;
-
-    setIsBlending(true);
-    setIsOnCooldown(true);
-    setActiveSlot(newActiveSlot);
-
-    setTimeout(() => {
-      setIsBlending(false);
-    }, TRANSITION_DURATION_MS);
     
-    setTimeout(() => {
-      setIsOnCooldown(false);
-    }, COOLDOWN_MS);
+    const newSrc = EMOTION_VIDEOS[newEmotion];
+    
+    if (newSlot === "B") {
+      emotionInSlotB.current = newEmotion;
+      setVideoBSrc(newSrc);
+    } else {
+      emotionInSlotA.current = newEmotion;
+      setVideoASrc(newSrc);
+    }
   }, [isOnCooldown]);
 
   useEffect(() => {
     const activeEmotion = activeSlot === "A" ? emotionInSlotA.current : emotionInSlotB.current;
-    
     if (targetEmotion && targetEmotion !== activeEmotion) {
-      if (isOnCooldown) return;
-
       const inactiveSlot = activeSlot === "A" ? "B" : "A";
-      const newSrc = EMOTION_VIDEOS[targetEmotion];
-
-      if (inactiveSlot === "B") {
-        emotionInSlotB.current = targetEmotion;
-        setVideoBSrc(newSrc);
-      } else {
-        emotionInSlotA.current = targetEmotion;
-        setVideoASrc(newSrc);
-      }
-      startTransition(inactiveSlot);
+      transitionToVideo(targetEmotion, inactiveSlot);
     }
-  }, [targetEmotion, activeSlot, isOnCooldown, startTransition]);
+  }, [targetEmotion, activeSlot, transitionToVideo]);
+
+  const handleCanPlayThrough = (slotToActivate) => {
+    if (activeSlot === slotToActivate) return;
+
+    setActiveSlot(slotToActivate);
+    setIsOnCooldown(true);
+    setTimeout(() => {
+      setIsOnCooldown(false);
+    }, COOLDOWN_MS);
+  };
 
   useEffect(() => {
-    const videoRef = activeSlot === 'A' ? videoARef.current : videoBRef.current;
-    if (videoRef) {
-        videoRef.play().catch(() => {
-            // Autoplay might be blocked by the browser.
-        });
+    const videoA = videoARef.current;
+    const videoB = videoBRef.current;
+
+    if (activeSlot === 'A' && videoA) {
+      videoA.play().catch(() => {});
+      if (videoB) videoB.pause();
+    } else if (activeSlot === 'B' && videoB) {
+      videoB.play().catch(() => {});
+      if (videoA) videoA.pause();
     }
   }, [activeSlot, videoASrc, videoBSrc]);
-
 
   const handleVideoEnded = (slot) => {
     if (slot !== activeSlot || isOnCooldown) return;
 
     const endedEmotion = slot === "A" ? emotionInSlotA.current : emotionInSlotB.current;
-
     if (endedEmotion !== "neutral") {
       const inactiveSlot = activeSlot === "A" ? "B" : "A";
-      const newSrc = EMOTION_VIDEOS["neutral"];
-
-      if (inactiveSlot === "B") {
-        emotionInSlotB.current = "neutral";
-        setVideoBSrc(newSrc);
-      } else {
-        emotionInSlotA.current = "neutral";
-        setVideoASrc(newSrc);
-      }
-      startTransition(inactiveSlot);
+      transitionToVideo("neutral", inactiveSlot);
     }
   };
   
@@ -107,12 +94,13 @@ export default function VideoPlayer({ emotion: targetEmotion = "neutral" }) {
         src={videoASrc}
         className={clsx(
           "absolute inset-0 w-full h-full object-cover transition-opacity",
-            {
-              "opacity-100 z-20": activeSlot === "A" || (isBlending && activeSlot !== "A"),
-              "opacity-0 z-10": activeSlot !== "A" && !isBlending,
-            }
+          {
+            "opacity-100": activeSlot === "A",
+            "opacity-0": activeSlot !== "A",
+          }
         )}
         style={{ transitionDuration: `${TRANSITION_DURATION_MS}ms` }}
+        onCanPlayThrough={() => handleCanPlayThrough('A')}
         onEnded={() => handleVideoEnded("A")}
         loop={emotionInSlotA.current === "neutral"}
         autoPlay
@@ -126,11 +114,12 @@ export default function VideoPlayer({ emotion: targetEmotion = "neutral" }) {
         className={clsx(
           "absolute inset-0 w-full h-full object-cover transition-opacity",
           {
-            "opacity-100 z-20": activeSlot === "B" || (isBlending && activeSlot !== "B"),
-            "opacity-0 z-10": activeSlot !== "B" && !isBlending,
+            "opacity-100": activeSlot === "B",
+            "opacity-0": activeSlot !== "B",
           }
         )}
         style={{ transitionDuration: `${TRANSITION_DURATION_MS}ms` }}
+        onCanPlayThrough={() => handleCanPlayThrough('B')}
         onEnded={() => handleVideoEnded("B")}
         loop={emotionInSlotB.current === "neutral"}
         autoPlay
@@ -139,4 +128,4 @@ export default function VideoPlayer({ emotion: targetEmotion = "neutral" }) {
       />
     </div>
   );
-} 
+}
