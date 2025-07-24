@@ -16,7 +16,7 @@ const EMOTION_VIDEOS = {
   angry: "videos/angry.mp4",
 };
 
-const TRANSITION_DURATION_MS = 1000;
+const TRANSITION_DURATION_MS = 10000;
 const COOLDOWN_MS = 3000;
 
 export default function VideoPlayer({ emotion: targetEmotion = "neutral" }) {
@@ -27,6 +27,8 @@ export default function VideoPlayer({ emotion: targetEmotion = "neutral" }) {
   const [isOnCooldown, setIsOnCooldown] = useState(false);
   const [videoASrc, setVideoASrc] = useState(EMOTION_VIDEOS.neutral);
   const [videoBSrc, setVideoBSrc] = useState(null);
+  const [isBlending, setIsBlending] = useState(false);
+
 
   const emotionInSlotA = useRef("neutral");
   const emotionInSlotB = useRef(null);
@@ -34,9 +36,14 @@ export default function VideoPlayer({ emotion: targetEmotion = "neutral" }) {
   const startTransition = useCallback((newActiveSlot) => {
     if (isOnCooldown) return;
 
+    setIsBlending(true);
     setIsOnCooldown(true);
     setActiveSlot(newActiveSlot);
 
+    setTimeout(() => {
+      setIsBlending(false);
+    }, TRANSITION_DURATION_MS);
+    
     setTimeout(() => {
       setIsOnCooldown(false);
     }, COOLDOWN_MS);
@@ -100,7 +107,10 @@ export default function VideoPlayer({ emotion: targetEmotion = "neutral" }) {
         src={videoASrc}
         className={clsx(
           "absolute inset-0 w-full h-full object-cover transition-opacity",
-          activeSlot === "A" ? "opacity-100" : "opacity-0"
+            {
+              "opacity-100 z-20": activeSlot === "A" || (isBlending && activeSlot !== "A"),
+              "opacity-0 z-10": activeSlot !== "A" && !isBlending,
+            }
         )}
         style={{ transitionDuration: `${TRANSITION_DURATION_MS}ms` }}
         onEnded={() => handleVideoEnded("A")}
@@ -115,7 +125,10 @@ export default function VideoPlayer({ emotion: targetEmotion = "neutral" }) {
         src={videoBSrc}
         className={clsx(
           "absolute inset-0 w-full h-full object-cover transition-opacity",
-          activeSlot === "B" ? "opacity-100" : "opacity-0"
+          {
+            "opacity-100 z-20": activeSlot === "B" || (isBlending && activeSlot !== "B"),
+            "opacity-0 z-10": activeSlot !== "B" && !isBlending,
+          }
         )}
         style={{ transitionDuration: `${TRANSITION_DURATION_MS}ms` }}
         onEnded={() => handleVideoEnded("B")}
