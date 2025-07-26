@@ -18,7 +18,7 @@ const int STEPS_PER_REV = 2048;
 Stepper motor(STEPS_PER_REV, 4, 6, 5, 7);
 
 // 門檻設定
-const float DISTANCE_THRESHOLD = 40;
+const float DISTANCE_THRESHOLD = 30;
 const unsigned long MAX_INTERVAL = 1000;
 const unsigned long SAMPLE_INTERVAL = 20;
 
@@ -45,7 +45,7 @@ unsigned long qrLastChange = 0;
 bool isAwake = false;     // false = Sleep, true = Wake up
 
 //// Light Setting ////
-const int LIGHT_THRESHOLD = 850;          // 根據實際環境調整
+const int LIGHT_THRESHOLD = 550;          // 根據實際環境調整
 const unsigned long debounceDelay = 200;  // 去彈跳延遲（毫秒）
 bool lastState = false;
 bool currentState = false;
@@ -284,6 +284,8 @@ void loop() {
   if (now > QR_STARTUP_BLOCK) qrReady = true;
 
   int lightValue = analogRead(LIGHT_PIN);
+  // Serial.println('light = ');
+  // Serial.println(lightValue);
   bool qrRaw = lightValue > LIGHT_THRESHOLD;
 
   if (debounceDigital(qrRaw,

@@ -163,6 +163,8 @@ class Agent:
             await self.light_control_tool.set_light_effect("REWIND", is_mode=True)
             # You can add more logic here if the backend needs to do something
             # for rewind, e.g., fetching past memories.
+            if not self.system_state.is_listening:
+                await self.light_control_tool.set_light_effect("IDLE", is_mode=True)
         # The FORGET signal is handled above with its own lock logic.
         else:
             logger.warning(f"Unknown signal received: {signal}")

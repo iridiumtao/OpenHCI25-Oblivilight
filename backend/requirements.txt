@@ -16,3 +16,4 @@ playsound==1.2.2
 pyobjc # macOS only
 requests
 PySerial
+google-cloud-speech
