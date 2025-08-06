@@ -164,7 +164,7 @@ def _transcribe_realtime_google(audio_chunk: np.ndarray) -> str:
     config = speech.RecognitionConfig(
         encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=SAMPLE_RATE,
-        language_code="cmn-Hant-TW", # e.g., zh-TW
+        language_code="cmn-Hant-TW", # e.g., cmn-Hant-TW, ja-JP, en-US
         model="latest_long", # Good for general purpose, non-telephony audio
     )
 
