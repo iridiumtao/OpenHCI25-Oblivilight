@@ -75,7 +75,7 @@ The backend handles the core logic, including voice processing, AI conversation,
 *   **AI & Machine Learning:**
     *   **Conversation:** [OpenAI GPT](https://openai.com/), [LangChain](https://www.langchain.com/)
     *   **Speech-to-Text:** [OpenAI Whisper](https://openai.com/research/whisper), [Google Cloud Speech-to-Text](https://cloud.google.com/speech-to-text)
-    *   **Text-to-Speech:** (Not specified, but likely a corresponding service)
+    *   **Text-to-Speech:** OpenAI TTS, Yating 
 *   **Communication:** WebSockets for real-time communication with the frontend.
 *   **Hardware Interface:** `PySerial` for communicating with the Arduino.
 
