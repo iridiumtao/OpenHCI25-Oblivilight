@@ -2,8 +2,8 @@
 
 An intelligent night lamp that provides a safe, ephemeral space for users to voice their thoughts and emotions, converting conversations into physical paper notes.
 
-[![OpenHCI'25 Best Demo Award](httpss://img.shields.io/badge/OpenHCI'25-Best_Demo_Award-blue.svg)](https://path-to-your-award-or-project-page)
-[![TAICHI'25 Presentation](httpss://img.shields.io/badge/TAICHI'25-Selected_for_Presentation-green.svg)](https://path-to-conference-page)
+[![OpenHCI'25 Best Demo Award](https://img.shields.io/badge/OpenHCI'25-Best_Demo_Award-blue.svg)](https://path-to-your-award-or-project-page)
+[![TAICHI'25 Presentation](https://img.shields.io/badge/TAICHI'25-Selected_for_Presentation-green.svg)](https://path-to-conference-page)
 
 ---
 
@@ -27,22 +27,22 @@ Oblivilight is a full-stack project combining a web interface, a powerful backen
 ```mermaid
 sequenceDiagram
     participant User
-    participant Frontend (Next.js)
-    participant Backend (FastAPI)
-    participant "AI Services (OpenAI, Google)"
-    participant Hardware (Arduino)
+    participant Frontend
+    participant Backend
+    participant AIServices as "AI Services (OpenAI, Google)"
+    participant Hardware
 
     User->>+Backend: Speaks to device
     Backend->>+Hardware: Starts LED feedback
     Hardware-->>-Backend: LED active
-    Backend->>+"AI Services (OpenAI, Google)": STT (Whisper/Google Speech)
-    "AI Services (OpenAI, Google)"-->>Backend: Transcribed Text
-    Backend->>+"AI Services (OpenAI, Google)": LLM for response & emotion
-    "AI Services (OpenAI, Google)"-->>Backend: Text Response & Emotion Data
+    Backend->>+AIServices: STT (Whisper/Google Speech)
+    AIServices-->>Backend: Transcribed Text
+    Backend->>+AIServices: LLM for response & emotion
+    AIServices-->>Backend: Text Response & Emotion Data
     Backend->>+Frontend: WebSocket: Emotion Data
     Frontend-->>-User: Displays Emotion Visualization (Light)
-    Backend->>+"AI Services (OpenAI, Google)": TTS
-    "AI Services (OpenAI, Google)"-->>Backend: Audio response
+    Backend->>+AIServices: TTS
+    AIServices-->>Backend: Audio response
     Backend-->>-User: Plays audio response
 
     User->>+Hardware: Waves hand (forget gesture)
@@ -51,8 +51,8 @@ sequenceDiagram
     Backend->>Backend: Deletes recent conversation history
 
     User->>+Backend: Says "Goodnight"
-    Backend->>+"AI Services (OpenAI, Google)": Summarize conversation
-    "AI Services (OpenAI, Google)"-->>Backend: Conversation Summary
+    Backend->>+AIServices: Summarize conversation
+    AIServices-->>Backend: Conversation Summary
     Backend->>+Hardware: Print summary
     Hardware-->>-User: Prints physical note
     Backend->>Backend: Wipes session data
@@ -62,19 +62,19 @@ sequenceDiagram
 
 The frontend is a web-based interface for displaying the emotional state visualization.
 
-*   **Framework:** [Next.js](httpss://nextjs.org/) (using Turbopack)
+*   **Framework:** [Next.js](https://nextjs.org/) (using Turbopack)
 *   **Language:** JavaScript (React)
-*   **Styling:** [Tailwind CSS](httpss://tailwindcss.com/)
+*   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
 
 ### Backend
 
 The backend handles the core logic, including voice processing, AI conversation, and hardware control.
 
-*   **Framework:** [FastAPI](httpss://fastapi.tiangolo.com/)
+*   **Framework:** [FastAPI](https://fastapi.tiangolo.com/)
 *   **Language:** Python
 *   **AI & Machine Learning:**
-    *   **Conversation:** [OpenAI GPT](httpss://openai.com/), [LangChain](httpss://www.langchain.com/)
-    *   **Speech-to-Text:** [OpenAI Whisper](httpss://openai.com/research/whisper), [Google Cloud Speech-to-Text](httpss://cloud.google.com/speech-to-text)
+    *   **Conversation:** [OpenAI GPT](https://openai.com/), [LangChain](https://www.langchain.com/)
+    *   **Speech-to-Text:** [OpenAI Whisper](https://openai.com/research/whisper), [Google Cloud Speech-to-Text](https://cloud.google.com/speech-to-text)
     *   **Text-to-Speech:** (Not specified, but likely a corresponding service)
 *   **Communication:** WebSockets for real-time communication with the frontend.
 *   **Hardware Interface:** `PySerial` for communicating with the Arduino.
@@ -83,7 +83,7 @@ The backend handles the core logic, including voice processing, AI conversation,
 
 The physical lamp is controlled by an Arduino, which manages the sensors and actuators.
 
-*   **Microcontroller:** [Arduino](httpss://www.arduino.cc/)
+*   **Microcontroller:** [Arduino](https://www.arduino.cc/)
 *   **Key Components:**
     *   Gesture Sensor (for deletion)
     *   LEDs (for emotion visualization)
