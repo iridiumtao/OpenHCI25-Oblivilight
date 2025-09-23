@@ -32,9 +32,11 @@ sequenceDiagram
     participant AIServices as "AI Services (OpenAI, Google)"
     participant Hardware
 
-    User->>+Backend: Speaks to device
+    User->>+Hardware: Touches button on lamp
+    Hardware->>+Backend: Signal to start listening
     Backend->>+Hardware: Starts LED feedback
     Hardware-->>-Backend: LED active
+    User->>+Backend: Speaks to device
     Backend->>+AIServices: STT (Whisper/Google Speech)
     AIServices-->>Backend: Transcribed Text
     Backend->>+AIServices: LLM for response & emotion
