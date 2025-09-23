@@ -43,14 +43,13 @@ sequenceDiagram
     AIServices-->>Backend: Text Response & Emotion Data
     Backend->>+Frontend: WebSocket: Emotion Data
     Frontend-->>-User: Displays Emotion Visualization (Light)
-    Backend->>+AIServices: TTS
-    AIServices-->>Backend: Audio response
-    Backend-->>-User: Plays audio response
 
     User->>+Hardware: Waves hand (forget gesture)
     Hardware->>+Backend: Gesture signal
-    Backend-->>-User: Confirms deletion
     Backend->>Backend: Deletes recent conversation history
+    Backend->>+AIServices: TTS
+    AIServices-->>Backend: Audio response
+    Backend-->>-User: Plays audio response
 
     User->>+Backend: Says "Goodnight"
     Backend->>+AIServices: Summarize conversation
